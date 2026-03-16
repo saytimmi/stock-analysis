@@ -10,6 +10,7 @@
     "backfill": "tsx src/scripts/backfill.ts",
     "daily-update": "tsx src/scripts/daily-update.ts",
     "discover": "tsx src/scripts/discover-patterns.ts",
+    "bot": "tsx src/scripts/bot.ts",
     "test": "vitest run"
   },
   "repository": {
@@ -26,7 +27,8 @@
   "homepage": "https://github.com/saytimmi/stock-analysis#readme",
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2",
-    "dotenv": "^17.3.1"
+    "dotenv": "^17.3.1",
+    "grammy": "^1.41.1"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

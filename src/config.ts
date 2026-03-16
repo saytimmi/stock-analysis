@@ -20,6 +20,10 @@ export const config = {
     candleInterval: 15,
     candlesPerDay: 26,
   },
+  telegram: {
+    botToken: process.env.TELEGRAM_BOT_TOKEN!,
+    allowedChatIds: process.env.TELEGRAM_ALLOWED_CHATS?.split(',').map(Number) ?? [],
+  },
   defaultStocks: ['ALAB'],
   marketIndexes: ['SPY', 'QQQ'],
 } as const;
