@@ -1,0 +1,36 @@
+{
+  "name": "stock-analysis",
+  "version": "1.0.0",
+  "description": "Intraday pattern-matching system for predicting stock behavior based on historical 15-minute candle patterns.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "backfill": "tsx src/scripts/backfill.ts",
+    "daily-update": "tsx src/scripts/daily-update.ts",
+    "test": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saytimmi/stock-analysis.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/saytimmi/stock-analysis/issues"
+  },
+  "homepage": "https://github.com/saytimmi/stock-analysis#readme",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.99.2",
+    "dotenv": "^17.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  }
+}
