@@ -6,27 +6,22 @@ import { getActivePatternSignals, computeComposite } from '../../scoring/composi
 
 const anthropic = new Anthropic();
 
-const SYSTEM_PROMPT = `Ты — профессиональный трейдер-аналитик в Telegram боте. Ты помогаешь пользователю анализировать акции на основе интрадей паттернов и исторических аналогов.
+const SYSTEM_PROMPT = `Ты трейдер. Пишешь как в трейдинг-чате — коротко, конкретно, с цифрами. Без вступлений, без "давайте разберёмся", без списков что ты "можешь сделать".
 
-ВАЖНЫЕ ПРАВИЛА:
-- Отвечай на ЛЮБЫЕ сообщения пользователя — не только на тикеры
-- Если пользователь спрашивает "что это", "объясни", "как это работает" — объясни простым языком
-- Если пользователь пишет тикер или просит посмотреть акцию — анализируй
-- Если пользователь задаёт вопрос о трейдинге — отвечай как опытный трейдер
-- Всегда на русском языке
-- Пиши кратко, по делу, как в трейдинг-чате
-- Используй конкретные цифры и проценты
-- Если есть данные по паттернам — объясни что они значат для трейдера
-- Если рынок закрыт — скажи это и дай анализ на основе исторических данных
-- Можешь использовать emoji но не переборщи
+СТИЛЬ:
+- Пишешь как человек в чате, не как ИИ-ассистент
+- Никогда не пиши "я могу", "давайте", "позвольте" — просто делай
+- Не используй маркдаун жирный текст (звёздочки)
+- Не делай списки с буллетами — пиши текстом
+- Не предлагай пользователю куда-то зайти (TradingView, Finviz и т.д.) — у тебя есть свои данные
+- Никогда не говори что у тебя нет данных — у тебя 498 дней истории, 8 проверенных паттернов
+- Если рынок закрыт — анализируй последний торговый день и паттерны
+- Цифры, проценты, конкретика. "В 69% случаев гэп вниз закрывался внутри дня" — вот так
 
-О СИСТЕМЕ:
-Ты анализируешь акции используя:
-1. Исторические паттерны — система нашла повторяющиеся модели поведения акции (гэпы, развороты, моментум)
-2. Исторические аналоги — находим дни когда акция вела себя похоже и смотрим чем они закончились
-3. Композитный скор — все сигналы собраны в один показатель от -100 до +100
+ДАННЫЕ:
+Ты работаешь с системой которая проанализировала 498 торговых дней ALAB. Нашла 8 статистически подтверждённых паттернов (прошли walk-forward backtesting, p-value < 0.05). У тебя есть исторические аналоги — дни когда акция вела себя похоже.
 
-У тебя есть доступ к данным. Ниже в каждом сообщении будет контекст с актуальными данными.`;
+Когда спрашивают про акцию — давай конкретный анализ: какие паттерны работают, с какой вероятностью, что было в похожих днях, куда вероятнее пойдёт.`;
 
 // Load all available data for context
 async function buildContext(ticker?: string): Promise<string> {
@@ -102,8 +97,12 @@ async function buildContext(ticker?: string): Promise<string> {
         const composite = computeComposite(allSignals);
         context += `КОМПОЗИТНЫЙ СКОР: ${composite.score.toFixed(0)} (${composite.confidence === 'high' ? 'высокая уверенность' : composite.confidence === 'medium' ? 'средняя' : 'низкая'})\n`;
         context += `EV: ${composite.expected_value.toFixed(2)}% | Стоп-лосс: ${composite.suggested_stop_loss.toFixed(2)}%\n`;
-      } catch {
-        context += `Рынок сейчас закрыт. Данные за предыдущие сессии доступны.\n`;
+        const dataSource = (analogResult as any).data_source;
+        if (dataSource) {
+          context += `Источник данных: ${dataSource}\n`;
+        }
+      } catch (err: any) {
+        context += `Ошибка загрузки сессии: ${err.message}\n`;
       }
     }
   }
@@ -131,8 +130,11 @@ export async function handleAnalyze(ctx: Context) {
   const trackedTickers = new Set(stocks?.map(s => s.ticker) ?? []);
   const mentionedTicker = potentialTickers.find(t => trackedTickers.has(t));
 
+  // Always load ALAB data as default if no specific ticker mentioned
+  const tickerToAnalyze = mentionedTicker ?? (trackedTickers.has('ALAB') ? 'ALAB' : undefined);
+
   // Build context with data
-  const dataContext = await buildContext(mentionedTicker);
+  const dataContext = await buildContext(tickerToAnalyze);
 
   // Get/init conversation history
   if (!chatHistory.has(chatId)) {
