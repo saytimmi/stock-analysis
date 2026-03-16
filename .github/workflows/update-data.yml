@@ -1,0 +1,37 @@
+name: Update Stock Data
+
+on:
+  schedule:
+    # Run at 9:30 PM UTC (after US market close) on weekdays
+    - cron: '30 21 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Fetch data
+        run: python scripts/fetch_data.py ALAB
+
+      - name: Run analysis
+        run: python scripts/analyze_patterns.py ALAB
+
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --staged --quiet || git commit -m "Update ALAB data $(date +%Y-%m-%d)"
+          git push
