@@ -9,6 +9,7 @@
   "scripts": {
     "backfill": "tsx src/scripts/backfill.ts",
     "daily-update": "tsx src/scripts/daily-update.ts",
+    "discover": "tsx src/scripts/discover-patterns.ts",
     "test": "vitest run"
   },
   "repository": {
