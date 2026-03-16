@@ -47,6 +47,17 @@ create table candles_daily (
 
 create index idx_candles_daily_stock_date on candles_daily(stock_id, date);
 
+-- Earnings dates per stock (for quarterly cycle tracking)
+create table earnings_dates (
+  id serial primary key,
+  stock_id integer not null references stocks(id),
+  date date not null,
+  quarter text, -- e.g. 'Q1 2025', 'Q4 2024'
+  unique(stock_id, date)
+);
+
+create index idx_earnings_stock_date on earnings_dates(stock_id, date);
+
 -- Computed day profiles for similarity search
 create table day_profiles (
   id bigserial primary key,
@@ -63,6 +74,11 @@ create table day_profiles (
   is_opex boolean default false,
   day_of_week smallint,
   candle_count smallint,
+  -- Quarterly earnings cycle context
+  days_since_earnings smallint,    -- how many trading days since last earnings
+  days_until_earnings smallint,    -- how many trading days until next earnings
+  earnings_quarter text,           -- which quarter we're in (e.g. 'Q1 2025')
+  quarter_position numeric(5,4),   -- 0.0 = right after earnings, 1.0 = right before next
   unique(stock_id, date)
 );
 
