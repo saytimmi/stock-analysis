@@ -6,7 +6,7 @@ export async function handlePatterns(ctx: Context) {
   const ticker = text.replace(/^\/patterns\s*/i, '').trim().toUpperCase();
 
   if (!ticker) {
-    await ctx.reply('Usage: /patterns ALAB');
+    await ctx.reply('Использование: /patterns ALAB');
     return;
   }
 
@@ -17,7 +17,7 @@ export async function handlePatterns(ctx: Context) {
     .single();
 
   if (!stock) {
-    await ctx.reply(`❌ ${ticker} not tracked.`);
+    await ctx.reply(`❌ ${ticker} не отслеживается.`);
     return;
   }
 
@@ -29,15 +29,15 @@ export async function handlePatterns(ctx: Context) {
     .order('win_rate', { ascending: false });
 
   if (!patterns?.length) {
-    await ctx.reply(`No active patterns for ${ticker}.`);
+    await ctx.reply(`Нет активных паттернов для ${ticker}.`);
     return;
   }
 
-  let msg = `📊 *Patterns for ${ticker}:*\n\n`;
+  let msg = `📊 *Паттерны ${ticker}:*\n\n`;
   for (const p of patterns) {
     const stageEmoji = p.lifecycle_stage === 'live' ? '🟢' : p.lifecycle_stage === 'monitored' ? '🟡' : '⚪';
     msg += `${stageEmoji} *${p.description}*\n`;
-    msg += `   Win: ${(p.win_rate * 100).toFixed(1)}% | EV: ${p.expected_value?.toFixed(2)}% | Events: ${p.occurrences} | ${p.lifecycle_stage}\n\n`;
+    msg += `   Win: ${(p.win_rate * 100).toFixed(1)}% | EV: ${p.expected_value?.toFixed(2)}% | Событий: ${p.occurrences} | ${p.lifecycle_stage}\n\n`;
   }
 
   await ctx.reply(msg, { parse_mode: 'Markdown' });
