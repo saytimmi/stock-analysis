@@ -23,7 +23,7 @@ export async function storePatterns(
       .insert({
         stock_id: stockId,
         type: pattern.type,
-        source: 'discovery',
+        source: 'algorithmic',
         description: pattern.description,
         parameters: pattern.parameters,
         lifecycle_stage: 'validated',

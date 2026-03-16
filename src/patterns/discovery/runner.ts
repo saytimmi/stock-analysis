@@ -190,6 +190,18 @@ export async function runDiscovery(stockId: number): Promise<BacktestResult[]> {
   const passed = allResults.filter((r) => r.passed);
   console.log(`  ${allResults.length} patterns discovered, ${passed.length} passed backtesting`);
 
+  // Log top patterns by win rate (even if not passed)
+  const sorted = [...allResults]
+    .filter(r => r.pattern.occurrences >= 10)
+    .sort((a, b) => b.overall_win_rate - a.overall_win_rate);
+  if (sorted.length > 0) {
+    console.log(`\n  Top 10 patterns by win rate (with 10+ events):`);
+    for (const r of sorted.slice(0, 10)) {
+      console.log(`    ${r.passed ? '✓' : '✗'} ${r.pattern.description}`);
+      console.log(`      win_rate=${(r.overall_win_rate * 100).toFixed(1)}% events=${r.pattern.occurrences} ev=${r.overall_ev.toFixed(4)} p=${r.p_value.toFixed(4)} windows=${r.windows_tested}`);
+    }
+  }
+
   if (passed.length > 0) {
     const stored = await storePatterns(stockId, allResults);
     console.log(`  Stored ${stored} patterns to DB`);
