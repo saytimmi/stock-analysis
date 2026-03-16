@@ -16,7 +16,7 @@ export function transformDailyBars(bars: PolygonBar[], stockId: number) {
     high: bar.h,
     low: bar.l,
     close: bar.c,
-    volume: bar.v,
+    volume: Math.round(bar.v),
     gap_pct: null as number | null,
   }));
 }

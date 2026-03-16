@@ -18,26 +18,58 @@ export function classifyPreMarket(pctChange: number): 'up' | 'down' | 'flat' {
   return 'flat';
 }
 
+/**
+ * Paginated select — Supabase returns max 1000 rows per query.
+ * This fetches all rows by paginating through results.
+ */
+async function selectAll(
+  table: string,
+  columns: string,
+  filters: Record<string, any>,
+  orderBy?: string
+): Promise<any[]> {
+  const PAGE_SIZE = 1000;
+  let allRows: any[] = [];
+  let offset = 0;
+
+  while (true) {
+    let query = supabase.from(table).select(columns).range(offset, offset + PAGE_SIZE - 1);
+
+    for (const [key, value] of Object.entries(filters)) {
+      if (key.startsWith('gte:')) query = query.gte(key.slice(4), value);
+      else if (key.startsWith('lte:')) query = query.lte(key.slice(4), value);
+      else query = query.eq(key, value);
+    }
+
+    if (orderBy) query = query.order(orderBy);
+
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data?.length) break;
+
+    allRows = allRows.concat(data);
+    if (data.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+
+  return allRows;
+}
+
 export async function computeAndStoreProfiles(
   stockId: number,
   fromDate?: string,
   toDate?: string
 ): Promise<number> {
-  // Get dates that have regular candles
-  let query = supabase
-    .from('candles_15m')
-    .select('date')
-    .eq('stock_id', stockId)
-    .eq('session', 'regular')
-    .order('date');
+  // Get all dates that have regular candles (paginated)
+  const filters: Record<string, any> = {
+    stock_id: stockId,
+    session: 'regular',
+  };
+  if (fromDate) filters['gte:date'] = fromDate;
+  if (toDate) filters['lte:date'] = toDate;
 
-  if (fromDate) query = query.gte('date', fromDate);
-  if (toDate) query = query.lte('date', toDate);
-
-  const { data: dateRows, error: dateError } = await query;
-  if (dateError) throw dateError;
-
-  const uniqueDates = [...new Set(dateRows?.map(r => r.date) ?? [])];
+  const dateRows = await selectAll('candles_15m', 'date', filters, 'date');
+  const uniqueDates = [...new Set(dateRows.map(r => r.date))];
   let stored = 0;
 
   for (const date of uniqueDates) {
@@ -103,11 +135,10 @@ export async function computeAndStoreProfiles(
       volume_profile: volumeProfile,
       pre_market_direction: preMarketDirection,
       pre_market_volume_ratio: preMarketVolumeRatio,
-      is_earnings: false, // deferred to Phase 2
+      is_earnings: false,
       is_opex: isOPEX(date),
       day_of_week: dayOfWeek,
       candle_count: rawProfile.length,
-      // Earnings cycle fields - will be populated separately
       days_since_earnings: null,
       days_until_earnings: null,
       earnings_quarter: null,
@@ -131,34 +162,40 @@ export async function updateRelativeMoves(
   fromDate?: string,
   toDate?: string
 ): Promise<void> {
-  let query = supabase
-    .from('candles_15m')
-    .select('id, date, time, pct_from_open')
-    .eq('stock_id', stockId)
-    .eq('session', 'regular');
+  // Paginated fetch of all candles
+  const filters: Record<string, any> = {
+    stock_id: stockId,
+    session: 'regular',
+  };
+  if (fromDate) filters['gte:date'] = fromDate;
+  if (toDate) filters['lte:date'] = toDate;
 
-  if (fromDate) query = query.gte('date', fromDate);
-  if (toDate) query = query.lte('date', toDate);
+  const candles = await selectAll('candles_15m', 'id, date, time, pct_from_open', filters);
+  if (!candles.length) return;
 
-  const { data: candles, error } = await query;
-  if (error) throw error;
-  if (!candles?.length) return;
-
-  // Get market context for the date range
+  // Get all unique dates
   const candleDates = [...new Set(candles.map(c => c.date))];
-  const { data: marketData, error: mError } = await supabase
-    .from('market_context')
-    .select('date, time, spy_pct_from_open')
-    .in('date', candleDates);
 
-  if (mError) throw mError;
-
+  // Fetch market context in batches of dates (Supabase .in() has limits)
   const marketIndex = new Map<string, number>();
-  for (const m of marketData ?? []) {
-    marketIndex.set(`${m.date}_${m.time}`, m.spy_pct_from_open ?? 0);
+  for (let i = 0; i < candleDates.length; i += 100) {
+    const dateBatch = candleDates.slice(i, i + 100);
+    const marketData = await selectAll('market_context', 'date, time, spy_pct_from_open', {});
+    // Actually fetch with .in() for this batch
+    const { data, error } = await supabase
+      .from('market_context')
+      .select('date, time, spy_pct_from_open')
+      .in('date', dateBatch)
+      .range(0, 9999);
+
+    if (error) throw error;
+    for (const m of data ?? []) {
+      marketIndex.set(`${m.date}_${m.time}`, m.spy_pct_from_open ?? 0);
+    }
   }
 
   // Batch update relative_move
+  let updated = 0;
   for (const candle of candles) {
     const spyPct = marketIndex.get(`${candle.date}_${candle.time}`) ?? 0;
     const relativeMov = Number(((candle.pct_from_open ?? 0) - spyPct).toFixed(4));
@@ -167,6 +204,9 @@ export async function updateRelativeMoves(
       .from('candles_15m')
       .update({ relative_move: relativeMov })
       .eq('id', candle.id);
+
+    updated++;
+    if (updated % 1000 === 0) console.log(`  Updated ${updated}/${candles.length} relative moves...`);
   }
 
   console.log(`Updated relative moves for ${candles.length} candles`);

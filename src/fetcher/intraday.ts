@@ -58,7 +58,7 @@ export async function fetchAndStoreIntradayCandles(
         high: bar.h,
         low: bar.l,
         close: bar.c,
-        volume: bar.v,
+        volume: Math.round(bar.v),
         pct_from_open: computePctFromOpen(bar.c, dayOpenPrice),
         relative_move: null as number | null,
       };

@@ -23,13 +23,13 @@ export function buildMarketRecord(input: MarketRecordInput) {
     spy_pct_from_open: spyDayOpen > 0
       ? Number(((spyBar.c - spyDayOpen) / spyDayOpen * 100).toFixed(4))
       : 0,
-    spy_volume: spyBar.v,
+    spy_volume: Math.round(spyBar.v),
     qqq_open: qqqBar?.o ?? null,
     qqq_close: qqqBar?.c ?? null,
     qqq_pct_from_open: qqqBar && qqqDayOpen > 0
       ? Number(((qqqBar.c - qqqDayOpen) / qqqDayOpen * 100).toFixed(4))
       : null,
-    qqq_volume: qqqBar?.v ?? null,
+    qqq_volume: qqqBar ? Math.round(qqqBar.v) : null,
   };
 }
 
@@ -85,11 +85,15 @@ export async function fetchAndStoreMarketContext(
     }
   }
 
-  const { error } = await supabase
-    .from('market_context')
-    .upsert(records, { onConflict: 'date,time' });
+  // Upsert in batches of 500 to avoid payload size limits
+  for (let i = 0; i < records.length; i += 500) {
+    const batch = records.slice(i, i + 500);
+    const { error } = await supabase
+      .from('market_context')
+      .upsert(batch, { onConflict: 'date,time' });
 
-  if (error) throw new Error(`Failed to upsert market context: ${error.message}`);
+    if (error) throw new Error(`Failed to upsert market context batch ${i}: ${error.message}`);
+  }
 
   console.log(`Stored ${records.length} market context records`);
   return records.length;
