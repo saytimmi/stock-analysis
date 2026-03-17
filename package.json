@@ -11,6 +11,7 @@
     "daily-update": "tsx src/scripts/daily-update.ts",
     "discover": "tsx src/scripts/discover-patterns.ts",
     "bot": "tsx src/scripts/bot.ts",
+    "catalog": "tsx src/scripts/build-catalog.ts",
     "test": "vitest run"
   },
   "repository": {
