@@ -1,16 +1,19 @@
-import { Context } from 'grammy';
+import { Context, InlineKeyboard } from 'grammy';
+
+const MINI_APP_URL = process.env.MINI_APP_URL || '';
 
 export async function handleHelp(ctx: Context) {
-  await ctx.reply(
-    `📊 *Stock Pattern Analyzer*\n\n` +
-    `Отправь тикер (например \`ALAB\`) и я покажу:\n` +
-    `• Текущую ситуацию внутри дня\n` +
-    `• Похожие исторические дни\n` +
-    `• Совпадения с паттернами и общий скор\n\n` +
+  const msg =
+    `Анализирую паттерны по историческим данным.\n\n` +
+    `Напиши тикер — дам расклад: какие паттерны работают, с какой вероятностью, куда вероятнее пойдёт.\n\n` +
     `*Команды:*\n` +
-    `/patterns ALAB — все паттерны по акции\n` +
-    `/help — эта справка\n\n` +
-    `Можно несколько тикеров сразу: \`ALAB NVDA MU\``,
-    { parse_mode: 'Markdown' }
-  );
+    `/patterns ALAB — все паттерны\n` +
+    `/pattern — создать свой паттерн`;
+
+  if (MINI_APP_URL) {
+    const kb = new InlineKeyboard().webApp('📊 Открыть приложение', MINI_APP_URL);
+    await ctx.reply(msg, { parse_mode: 'Markdown', reply_markup: kb });
+  } else {
+    await ctx.reply(msg, { parse_mode: 'Markdown' });
+  }
 }

@@ -1,8 +1,10 @@
-import { Context } from 'grammy';
+import { Context, InlineKeyboard } from 'grammy';
 import Anthropic from '@anthropic-ai/sdk';
 import { supabase } from '../../db/client.js';
 import { analyzeCurrentSession } from '../../scoring/realtime.js';
 import { getActivePatternSignals, computeComposite } from '../../scoring/composite.js';
+
+const MINI_APP_URL = process.env.MINI_APP_URL || '';
 
 const anthropic = new Anthropic();
 
@@ -164,14 +166,24 @@ export async function handleAnalyze(ctx: Context) {
     // Save assistant response to history
     history.push({ role: 'assistant', content: reply });
 
-    // Send, handling Telegram's message length limit
+    // Build inline keyboard with Mini App button
+    const kb = MINI_APP_URL
+      ? new InlineKeyboard().webApp(
+          '📊 Открыть в приложении',
+          tickerToAnalyze ? `${MINI_APP_URL}?ticker=${tickerToAnalyze}` : MINI_APP_URL,
+        )
+      : undefined;
+
+    // Send, handling Telegram's 4096-char message limit
     if (reply.length > 4000) {
       const chunks = reply.match(/.{1,4000}/gs) ?? [reply];
-      for (const chunk of chunks) {
-        await ctx.reply(chunk);
+      for (let i = 0; i < chunks.length; i++) {
+        // Attach button only to the last chunk
+        const opts = i === chunks.length - 1 && kb ? { reply_markup: kb } : {};
+        await ctx.reply(chunks[i], opts);
       }
     } else {
-      await ctx.reply(reply);
+      await ctx.reply(reply, kb ? { reply_markup: kb } : {});
     }
 
   } catch (err: any) {
