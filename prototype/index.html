@@ -1,0 +1,3216 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Stock Pattern Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg: #0b0b11;
+  --bg-card: #13131d;
+  --bg-card-hover: #191926;
+  --bg-tab: #0e0e16;
+  --border: rgba(255,255,255,0.06);
+  --border-active: rgba(255,255,255,0.12);
+  --text: #e8e8ed;
+  --text-secondary: #8b8b9e;
+  --text-hint: #55556a;
+  --green: #00e676;
+  --green-dim: rgba(0,230,118,0.12);
+  --red: #ff1744;
+  --red-dim: rgba(255,23,68,0.12);
+  --blue: #448aff;
+  --blue-dim: rgba(68,138,255,0.12);
+  --orange: #ff9100;
+  --orange-dim: rgba(255,145,0,0.12);
+  --accent: #448aff;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'DM Sans', -apple-system, sans-serif;
+  --safe-bottom: 0px;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  height: 100%;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Telegram-like header */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(11,11,17,0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  padding-top: max(12px, env(safe-area-inset-top));
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-ticker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.header-ticker-name {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 0.5px;
+}
+
+.header-ticker-arrow {
+  color: var(--text-hint);
+  font-size: 10px;
+  transition: transform 0.2s;
+}
+
+.market-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.market-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Main content area */
+.content {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 64px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+.content-inner {
+  padding: 60px 16px 24px;
+}
+
+/* Price block */
+.price-block {
+  text-align: center;
+  padding: 20px 0 16px;
+}
+
+.price-main {
+  font-family: var(--font-mono);
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1;
+}
+
+.price-change {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 500;
+  margin-top: 6px;
+}
+
+.price-change.up { color: var(--green); }
+.price-change.down { color: var(--red); }
+
+.price-ohlc {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.price-ohlc span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.price-ohlc .label {
+  color: var(--text-hint);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Chart container */
+.chart-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  margin: 16px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.chart-canvas {
+  width: 100%;
+  height: 160px;
+  position: relative;
+}
+
+.chart-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Earnings context */
+.earnings-context {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.earnings-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--blue-dim);
+  color: var(--blue);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.earnings-phase {
+  color: var(--text-hint);
+  font-size: 12px;
+}
+
+/* Section header */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0 12px;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-count {
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-family: var(--font-mono);
+}
+
+/* Pattern cards */
+.pattern-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.pattern-card:active {
+  transform: scale(0.98);
+  background: var(--bg-card-hover);
+}
+
+.pattern-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.pattern-name {
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.pattern-match {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.pattern-match.high { color: var(--green); }
+.pattern-match.medium { color: var(--orange); }
+.pattern-match.low { color: var(--text-secondary); }
+
+.pattern-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.pattern-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pattern-stat-label {
+  font-size: 11px;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pattern-stat-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pattern-stat-value.up { color: var(--green); }
+.pattern-stat-value.down { color: var(--red); }
+
+/* Progress bar */
+.match-bar {
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.match-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.8s ease;
+}
+
+.match-bar-fill.high { background: linear-gradient(90deg, var(--green), #69f0ae); }
+.match-bar-fill.medium { background: linear-gradient(90deg, var(--orange), #ffab40); }
+
+/* Sparkline */
+.sparkline-container {
+  height: 48px;
+  position: relative;
+}
+
+.sparkline-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.sparkline-label {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  font-size: 10px;
+  color: var(--text-hint);
+}
+
+/* Pattern type badge */
+.pattern-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.pattern-badge.system {
+  background: var(--blue-dim);
+  color: var(--blue);
+}
+
+.pattern-badge.user {
+  background: var(--orange-dim);
+  color: var(--orange);
+}
+
+.pattern-badge.phase {
+  background: rgba(255,255,255,0.06);
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+
+.pattern-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+/* Bottom tabs */
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(14,14,22,0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  display: flex;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  height: 64px;
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+
+.tab.active .tab-icon { color: var(--accent); }
+.tab.active .tab-label { color: var(--accent); }
+
+.tab-icon {
+  font-size: 20px;
+  color: var(--text-hint);
+  transition: color 0.2s;
+  line-height: 1;
+}
+
+.tab-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-hint);
+  transition: color 0.2s;
+}
+
+.tab-indicator {
+  position: absolute;
+  top: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.tab.active .tab-indicator { opacity: 1; }
+
+/* Patterns tab view */
+.tab-view { display: none; }
+.tab-view.active { display: block; }
+
+/* Chip filters */
+.chip-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.chip-scroll::-webkit-scrollbar { display: none; }
+
+.chip {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.chip.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.chip:active { transform: scale(0.95); }
+
+/* Sort bar */
+.sort-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+}
+
+.sort-label {
+  font-size: 13px;
+  color: var(--text-hint);
+}
+
+.sort-value {
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+/* Pattern list card (catalog version) */
+.pattern-list-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pattern-list-card:active {
+  transform: scale(0.98);
+  background: var(--bg-card-hover);
+}
+
+.pattern-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.pattern-list-name {
+  font-weight: 600;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pattern-number {
+  color: var(--text-hint);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.pattern-list-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.pattern-list-stats .val { font-weight: 600; }
+.pattern-list-stats .val.up { color: var(--green); }
+
+.pattern-list-sparkline {
+  height: 40px;
+  margin: 10px 0 8px;
+}
+
+.pattern-list-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pattern-list-cases {
+  font-size: 12px;
+  color: var(--text-hint);
+}
+
+/* History tab - calendar */
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0;
+}
+
+.calendar-month {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.calendar-nav {
+  display: flex;
+  gap: 16px;
+}
+
+.calendar-nav-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.calendar-day-header {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-hint);
+  font-weight: 500;
+  padding: 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  gap: 3px;
+}
+
+.calendar-day:active { transform: scale(0.9); }
+
+.calendar-day-num {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.calendar-day-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.calendar-day.win { background: var(--green-dim); }
+.calendar-day.win .calendar-day-num { color: var(--green); }
+.calendar-day.win .calendar-day-dot { background: var(--green); }
+
+.calendar-day.loss { background: var(--red-dim); }
+.calendar-day.loss .calendar-day-num { color: var(--red); }
+.calendar-day.loss .calendar-day-dot { background: var(--red); }
+
+.calendar-day.neutral { background: rgba(255,255,255,0.03); }
+.calendar-day.neutral .calendar-day-num { color: var(--text-secondary); }
+
+.calendar-day.today {
+  border: 1px solid var(--accent);
+}
+
+/* History detail card */
+.history-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 10px;
+}
+
+.history-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.history-date {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.history-result {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.history-result.up { color: var(--green); }
+.history-result.down { color: var(--red); }
+
+.history-ohlc {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.history-pattern {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.history-pattern-name { font-weight: 500; }
+.history-prediction { color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px; }
+.history-actual.up { color: var(--green); }
+.history-check { margin-left: 8px; }
+
+/* Create pattern CTA */
+.create-pattern-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  border: 1px dashed var(--border-active);
+  border-radius: 16px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+
+.create-pattern-cta:active {
+  background: var(--blue-dim);
+  transform: scale(0.98);
+}
+
+/* Settings/More tab */
+.settings-group {
+  margin-bottom: 20px;
+}
+
+.settings-group-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-hint);
+  padding: 16px 0 8px;
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.settings-item:first-of-type { border-radius: 12px 12px 0 0; }
+.settings-item:last-of-type { border-radius: 0 0 12px 12px; }
+.settings-item:only-of-type { border-radius: 12px; }
+
+.settings-item + .settings-item { border-top: none; }
+
+.settings-item:active { background: var(--bg-card-hover); }
+
+.settings-item-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.settings-icon.blue { background: var(--blue-dim); }
+.settings-icon.green { background: var(--green-dim); }
+.settings-icon.orange { background: var(--orange-dim); }
+
+.settings-item-label { font-size: 15px; font-weight: 500; }
+.settings-item-arrow { color: var(--text-hint); font-size: 14px; }
+
+.settings-item-value {
+  font-size: 14px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Loading skeleton */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+/* Smooth transitions between views */
+.fade-in {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Scrollbar */
+.content::-webkit-scrollbar { width: 0; }
+
+/* SVG candlestick colors */
+.candle-up { fill: var(--green); }
+.candle-down { fill: var(--red); }
+.wick { stroke-width: 1; }
+.wick-up { stroke: var(--green); }
+.wick-down { stroke: var(--red); }
+
+/* Volume bars */
+.vol-bar { fill: rgba(255,255,255,0.06); }
+
+/* Grid lines */
+.grid-line { stroke: rgba(255,255,255,0.04); stroke-width: 0.5; }
+.price-line { stroke: rgba(255,255,255,0.08); stroke-dasharray: 4 4; stroke-width: 0.5; }
+
+/* ===== PATTERN DETAIL VIEW ===== */
+.detail-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 200;
+  background: var(--bg);
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.detail-overlay.open {
+  transform: translateX(0);
+}
+
+.detail-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(11,11,17,0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.detail-back {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 4px 8px 4px 0;
+  line-height: 1;
+}
+
+.detail-title {
+  font-weight: 600;
+  font-size: 17px;
+  flex: 1;
+}
+
+.detail-scroll {
+  height: calc(100vh - 52px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 16px 40px;
+}
+
+.detail-scroll::-webkit-scrollbar { width: 0; }
+
+/* Pattern hero */
+.detail-hero {
+  text-align: center;
+  padding: 24px 0 20px;
+}
+
+.detail-hero-name {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.detail-hero-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Big stats row */
+.detail-big-stats {
+  display: flex;
+  gap: 2px;
+  margin: 16px 0;
+}
+
+.detail-big-stat {
+  flex: 1;
+  background: var(--bg-card);
+  padding: 16px 12px;
+  text-align: center;
+}
+
+.detail-big-stat:first-child { border-radius: 14px 0 0 14px; }
+.detail-big-stat:last-child { border-radius: 0 14px 14px 0; }
+
+.detail-big-stat-value {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.detail-big-stat-value.green { color: var(--green); }
+.detail-big-stat-value.blue { color: var(--accent); }
+
+.detail-big-stat-label {
+  font-size: 11px;
+  color: var(--text-hint);
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Average profile chart */
+.detail-chart {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.detail-chart-title {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.detail-chart-canvas {
+  height: 180px;
+  position: relative;
+}
+
+/* Timeline - step by step explanation */
+.detail-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  padding: 20px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeline {
+  position: relative;
+  padding-left: 24px;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--border-active);
+  border-radius: 1px;
+}
+
+.timeline-step {
+  position: relative;
+  padding-bottom: 20px;
+}
+
+.timeline-step:last-child { padding-bottom: 0; }
+
+.timeline-dot {
+  position: absolute;
+  left: -24px;
+  top: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timeline-dot.red { background: var(--red-dim); border: 2px solid var(--red); }
+.timeline-dot.green { background: var(--green-dim); border: 2px solid var(--green); }
+.timeline-dot.blue { background: var(--blue-dim); border: 2px solid var(--accent); }
+.timeline-dot.orange { background: var(--orange-dim); border: 2px solid var(--orange); }
+
+.timeline-time {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.timeline-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.timeline-desc strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.timeline-detail {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.timeline-detail .mono {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Conditions list */
+.conditions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.condition-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.condition-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.condition-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.condition-text strong { color: var(--text); font-weight: 600; }
+
+/* Stats breakdown */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.stat-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.stat-box-label {
+  font-size: 11px;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.stat-box-value {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.stat-box-value.green { color: var(--green); }
+.stat-box-value.red { color: var(--red); }
+
+.stat-box-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Phase breakdown */
+.phase-breakdown {
+  margin: 12px 0;
+}
+
+.phase-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.phase-row:last-child { border-bottom: none; }
+
+.phase-name {
+  font-size: 14px;
+  font-weight: 500;
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.phase-bar-bg {
+  flex: 1;
+  height: 8px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.phase-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+.phase-bar-fill.high { background: var(--green); }
+.phase-bar-fill.mid { background: var(--orange); }
+.phase-bar-fill.low { background: var(--red); }
+
+.phase-pct {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  width: 48px;
+  text-align: right;
+}
+
+.phase-pct.high { color: var(--green); }
+.phase-pct.mid { color: var(--orange); }
+.phase-pct.low { color: var(--red); }
+
+.phase-count {
+  font-size: 12px;
+  color: var(--text-hint);
+  width: 36px;
+  text-align: right;
+}
+
+/* Example days */
+.example-day {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 8px;
+}
+
+.example-day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.example-day-date {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.example-day-result {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.example-day-result.win { color: var(--green); }
+.example-day-result.loss { color: var(--red); }
+
+.example-day-ohlc {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.example-day-chart {
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.example-day-tags {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* Confidence meter */
+.confidence-meter {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.confidence-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.confidence-bar-outer {
+  height: 12px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.confidence-bar-inner {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--red), var(--orange), var(--green));
+  transition: width 0.8s ease;
+}
+
+.confidence-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-hint);
+}
+
+.confidence-score {
+  text-align: center;
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.confidence-score-label {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-hint);
+  margin-top: 2px;
+}
+
+/* Disclaimer */
+.detail-disclaimer {
+  margin-top: 20px;
+  padding: 12px;
+  background: rgba(255,145,0,0.06);
+  border: 1px solid rgba(255,145,0,0.15);
+  border-radius: 12px;
+  font-size: 12px;
+  color: var(--text-hint);
+  line-height: 1.5;
+}
+
+/* ===== TRADE LEVELS ===== */
+.trade-levels {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  margin: 16px 0;
+}
+
+.trade-levels-header {
+  padding: 14px 16px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trade-levels-visual {
+  padding: 0 16px 16px;
+  position: relative;
+}
+
+.trade-level-bar {
+  position: relative;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.trade-level {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  z-index: 2;
+}
+
+.trade-level-line {
+  flex: 1;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.trade-level-line.tp2 { background: linear-gradient(90deg, var(--green), transparent); }
+.trade-level-line.tp1 { background: linear-gradient(90deg, var(--green), transparent); opacity: 0.6; }
+.trade-level-line.entry { background: linear-gradient(90deg, var(--accent), transparent); }
+.trade-level-line.stop { background: linear-gradient(90deg, var(--red), transparent); }
+
+.trade-level-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  min-width: 52px;
+  text-align: center;
+}
+
+.trade-level-tag.tp { background: var(--green-dim); color: var(--green); }
+.trade-level-tag.entry { background: var(--blue-dim); color: var(--accent); }
+.trade-level-tag.stop { background: var(--red-dim); color: var(--red); }
+
+.trade-level-price {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 68px;
+}
+
+.trade-level-price.green { color: var(--green); }
+.trade-level-price.blue { color: var(--accent); }
+.trade-level-price.red { color: var(--red); }
+
+.trade-level-pct {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  min-width: 50px;
+  text-align: right;
+}
+
+/* Vertical connector line */
+.trade-level-bar::before {
+  content: '';
+  position: absolute;
+  left: 24px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background: linear-gradient(180deg, var(--green), var(--accent), var(--red));
+  opacity: 0.3;
+  border-radius: 1px;
+  z-index: 1;
+}
+
+/* R:R box */
+.trade-rr {
+  display: flex;
+  gap: 2px;
+  margin-top: 12px;
+}
+
+.trade-rr-item {
+  flex: 1;
+  padding: 12px;
+  text-align: center;
+}
+
+.trade-rr-item:first-child { border-radius: 10px 0 0 10px; background: var(--green-dim); }
+.trade-rr-item:nth-child(2) { background: rgba(255,255,255,0.03); }
+.trade-rr-item:last-child { border-radius: 0 10px 10px 0; background: var(--red-dim); }
+
+.trade-rr-value {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.trade-rr-value.green { color: var(--green); }
+.trade-rr-value.red { color: var(--red); }
+.trade-rr-value.blue { color: var(--accent); }
+
+.trade-rr-label {
+  font-size: 10px;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+/* Trade timing */
+.trade-timing {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 12px;
+}
+
+.trade-timing-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.trade-timing-row + .trade-timing-row {
+  border-top: 1px solid var(--border);
+}
+
+.trade-timing-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.trade-timing-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ===== LIVE ANALYSIS CARD ===== */
+.live-analysis {
+  background: linear-gradient(135deg, rgba(68,138,255,0.08), rgba(0,230,118,0.05));
+  border: 1px solid rgba(68,138,255,0.2);
+  border-radius: 16px;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+.live-analysis-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.live-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.live-analysis-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.live-analysis-time {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-hint);
+  margin-left: auto;
+}
+
+.live-analysis-body {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.live-analysis-body strong { color: var(--text); font-weight: 600; }
+.live-analysis-body .green { color: var(--green); }
+.live-analysis-body .red { color: var(--red); }
+.live-analysis-body .blue { color: var(--accent); }
+.live-analysis-body .mono { font-family: var(--font-mono); font-weight: 600; }
+
+.live-analysis-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.live-tag {
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.live-tag.bullish { background: var(--green-dim); color: var(--green); }
+.live-tag.bearish { background: var(--red-dim); color: var(--red); }
+.live-tag.neutral { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+.live-tag.info { background: var(--blue-dim); color: var(--accent); }
+
+.live-analysis-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px;
+  background: rgba(68,138,255,0.1);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.live-analysis-action:active {
+  transform: scale(0.98);
+  background: rgba(68,138,255,0.18);
+}
+
+/* Market context row */
+.market-context {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.market-ctx-item {
+  flex: 1;
+  padding: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.market-ctx-ticker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-hint);
+  letter-spacing: 0.5px;
+}
+
+.market-ctx-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.market-ctx-value.up { color: var(--green); }
+.market-ctx-value.down { color: var(--red); }
+
+/* Fail analysis */
+.fail-analysis {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.fail-header {
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fail-reason {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fail-reason:last-child { border-bottom: none; }
+
+.fail-reason-pct {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--red);
+  min-width: 42px;
+}
+
+.fail-reason-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.fail-reason-text strong { color: var(--text); }
+
+/* ===== LIBRARY CARDS ===== */
+.lib-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lib-card:active {
+  transform: scale(0.98);
+  background: var(--bg-card-hover);
+}
+
+.lib-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.lib-card-name {
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.3;
+  margin-bottom: 3px;
+}
+
+.lib-card-timeframe {
+  font-size: 12px;
+  color: var(--text-hint);
+  font-family: var(--font-mono);
+}
+
+.lib-card-winrate {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.lib-card-winrate.green { color: var(--green); }
+
+.lib-card-sparkline {
+  height: 50px;
+  margin: 8px 0;
+}
+
+.lib-card-explain {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin: 8px 0;
+}
+
+.lib-card-explain strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.lib-card-stats-row {
+  display: flex;
+  gap: 4px;
+  margin: 10px 0 8px;
+}
+
+.lib-mini-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 8px;
+}
+
+.lib-mini-label {
+  font-size: 10px;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.lib-mini-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.lib-mini-value.green { color: var(--green); }
+.lib-mini-value.blue { color: var(--accent); }
+
+.lib-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-content">
+    <div class="header-ticker" onclick="toggleTicker()">
+      <span class="header-ticker-name">ALAB</span>
+      <span class="header-ticker-arrow">▼</span>
+    </div>
+    <div class="market-status">
+      <div class="market-dot"></div>
+      <span>Regular session</span>
+    </div>
+  </div>
+</div>
+
+<!-- Content -->
+<div class="content">
+  <!-- Tab 1: Now -->
+  <div id="tab-now" class="tab-view active">
+    <div class="content-inner fade-in">
+
+      <!-- Price -->
+      <div class="price-block">
+        <div class="price-main" style="font-family: var(--font-mono);">$131.42</div>
+        <div class="price-change up">+2.32 (+1.80%)</div>
+        <div class="price-ohlc">
+          <span><span class="label">O</span> 129.10</span>
+          <span><span class="label">H</span> 132.50</span>
+          <span><span class="label">L</span> 128.80</span>
+          <span><span class="label">Gap</span> +0.4%</span>
+        </div>
+      </div>
+
+      <!-- Market context -->
+      <div class="market-context">
+        <div class="market-ctx-item">
+          <div class="market-ctx-ticker">SPY</div>
+          <div class="market-ctx-value up">+0.42%</div>
+        </div>
+        <div class="market-ctx-item">
+          <div class="market-ctx-ticker">QQQ</div>
+          <div class="market-ctx-value up">+0.68%</div>
+        </div>
+        <div class="market-ctx-item">
+          <div class="market-ctx-ticker">SOXX</div>
+          <div class="market-ctx-value up">+1.12%</div>
+        </div>
+        <div class="market-ctx-item">
+          <div class="market-ctx-ticker">VIX</div>
+          <div class="market-ctx-value down">-3.2%</div>
+        </div>
+      </div>
+
+      <!-- Earnings context -->
+      <div class="earnings-context">
+        <span class="earnings-badge">📅 До отчёта: 34 дня</span>
+        <span class="earnings-phase">Mid-quarter</span>
+      </div>
+
+      <!-- LIVE SIGNAL -->
+      <div class="live-analysis" style="padding:0;overflow:hidden;">
+
+        <!-- Signal header -->
+        <div style="padding:14px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,0.06);">
+          <div class="live-pulse"></div>
+          <span class="live-analysis-title">Сигнал прямо сейчас</span>
+          <span class="live-analysis-time">14:32 ET · 5ч 02м от открытия</span>
+        </div>
+
+        <!-- What's happening -->
+        <div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.06);">
+          <div class="live-analysis-body" style="margin:0;">
+            Открытие <span class="mono">$129.10</span> с гэпом <strong class="green">+0.4%</strong>. Дип до <span class="mono red">$128.80</span> в первый час, затем ралли до <span class="mono green">$132.50</span>. Сейчас ретест <span class="mono">$131.42</span> — <strong>держится выше open</strong>.
+          </div>
+        </div>
+
+        <!-- Matched pattern -->
+        <div style="padding:14px 16px;background:rgba(0,230,118,0.04);border-bottom:1px solid rgba(255,255,255,0.06);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div>
+              <div style="font-size:11px;color:var(--text-hint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Совпадает с паттерном</div>
+              <div style="font-size:16px;font-weight:700;">Morning Dip → Rally</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-family:var(--font-mono);font-size:28px;font-weight:700;color:var(--green);line-height:1;">84%</div>
+              <div style="font-size:11px;color:var(--text-hint);">совпадение</div>
+            </div>
+          </div>
+
+          <!-- Current phase indicator -->
+          <div style="margin-bottom:12px;">
+            <div style="display:flex;gap:2px;margin-bottom:6px;">
+              <div style="flex:1;height:4px;border-radius:2px;background:var(--green);opacity:0.3;"></div>
+              <div style="flex:1.5;height:4px;border-radius:2px;background:var(--green);opacity:0.3;"></div>
+              <div style="flex:1;height:4px;border-radius:2px;background:var(--accent);"></div>
+              <div style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,0.08);"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-hint);">
+              <span>Дип ✓</span>
+              <span>Ралли ✓</span>
+              <span style="color:var(--accent);font-weight:600;">Ретест ◄</span>
+              <span>Закрытие</span>
+            </div>
+          </div>
+
+          <div style="font-size:13px;color:var(--text-secondary);line-height:1.5;">
+            Сейчас <strong style="color:var(--accent);">фаза ретеста</strong>. Исторически цена <strong style="color:var(--text);">не опускается ниже open</strong> и закрывается <span style="font-family:var(--font-mono);color:var(--green);font-weight:600;">+1.5% — +2.5%</span> к 16:00.
+          </div>
+        </div>
+
+        <!-- Trade levels for RIGHT NOW -->
+        <div style="padding:14px 16px;">
+          <div style="font-size:12px;color:var(--text-hint);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Уровни на сейчас (от текущей $131.42)</div>
+
+          <!-- Visual levels -->
+          <div style="display:flex;flex-direction:column;gap:8px;">
+
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;background:var(--green-dim);color:var(--green);font-family:var(--font-mono);min-width:40px;text-align:center;">TP2</span>
+              <div style="flex:1;height:1px;background:linear-gradient(90deg,var(--green),transparent);"></div>
+              <span style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:var(--green);">$132.72</span>
+              <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-secondary);">+1.0%</span>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;background:var(--green-dim);color:var(--green);font-family:var(--font-mono);min-width:40px;text-align:center;">TP1</span>
+              <div style="flex:1;height:1px;background:linear-gradient(90deg,var(--green),transparent);opacity:0.5;"></div>
+              <span style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:var(--green);">$131.81</span>
+              <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-secondary);">+0.3%</span>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;background:rgba(68,138,255,0.08);margin:0 -16px;padding:8px 16px;border-left:3px solid var(--accent);">
+              <span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;background:var(--blue-dim);color:var(--accent);font-family:var(--font-mono);min-width:40px;text-align:center;">ТУТ</span>
+              <div style="flex:1;height:1px;background:linear-gradient(90deg,var(--accent),transparent);"></div>
+              <span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--accent);">$131.42</span>
+              <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-secondary);">сейчас</span>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;background:rgba(255,255,255,0.06);color:var(--text-secondary);font-family:var(--font-mono);min-width:40px;text-align:center;">Open</span>
+              <div style="flex:1;height:1px;background:rgba(255,255,255,0.1);"></div>
+              <span style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:var(--text-secondary);">$129.10</span>
+              <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-hint);">−1.8%</span>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;background:var(--red-dim);color:var(--red);font-family:var(--font-mono);min-width:40px;text-align:center;">СТОП</span>
+              <div style="flex:1;height:1px;background:linear-gradient(90deg,var(--red),transparent);"></div>
+              <span style="font-family:var(--font-mono);font-size:15px;font-weight:600;color:var(--red);">$128.80</span>
+              <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-secondary);">−2.0%</span>
+            </div>
+
+          </div>
+
+          <!-- R:R mini -->
+          <div style="display:flex;gap:8px;margin-top:14px;">
+            <div style="flex:1;padding:10px;background:var(--green-dim);border-radius:10px;text-align:center;">
+              <div style="font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--green);">+1.0%</div>
+              <div style="font-size:10px;color:var(--text-hint);margin-top:2px;">до TP2</div>
+            </div>
+            <div style="flex:1;padding:10px;background:rgba(255,255,255,0.03);border-radius:10px;text-align:center;">
+              <div style="font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--accent);">73%</div>
+              <div style="font-size:10px;color:var(--text-hint);margin-top:2px;">win rate</div>
+            </div>
+            <div style="flex:1;padding:10px;background:var(--red-dim);border-radius:10px;text-align:center;">
+              <div style="font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--red);">−2.0%</div>
+              <div style="font-size:10px;color:var(--text-hint);margin-top:2px;">до стопа</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tags + context -->
+        <div style="padding:0 16px 14px;">
+          <div class="live-analysis-tags">
+            <span class="live-tag bullish">Бычий</span>
+            <span class="live-tag info">SOXX +1.1%</span>
+            <span class="live-tag neutral">VIX низкий</span>
+            <span class="live-tag bullish">Vol 1.4x</span>
+            <span class="live-tag info">Mid-quarter</span>
+          </div>
+          <div class="live-analysis-action" style="margin-top:12px;">
+            💬 Спросить бота подробнее
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Active patterns -->
+      <div class="section-header">
+        <div class="section-title">
+          Активные паттерны
+          <span class="section-count">3</span>
+        </div>
+      </div>
+
+      <!-- Pattern 1 -->
+      <div class="pattern-card" onclick="showDetail()">
+        <div class="pattern-card-header">
+          <div class="pattern-name">Morning Dip → Rally</div>
+          <div class="pattern-match high">84%</div>
+        </div>
+        <div class="match-bar"><div class="match-bar-fill high" style="width: 84%"></div></div>
+        <div class="pattern-stats">
+          <div class="pattern-stat">
+            <span class="pattern-stat-label">Прогноз</span>
+            <span class="pattern-stat-value up">+2.1%</span>
+          </div>
+          <div class="pattern-stat">
+            <span class="pattern-stat-label">Точность</span>
+            <span class="pattern-stat-value">73%</span>
+          </div>
+          <div class="pattern-stat">
+            <span class="pattern-stat-label">Случаев</span>
+            <span class="pattern-stat-value">41/56</span>
+          </div>
+        </div>
+        <div class="sparkline-container">
+          <svg class="sparkline-svg" viewBox="0 0 300 48" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="sparkGrad1" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--green)" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="var(--green)" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M0,30 Q20,32 40,38 Q60,44 80,42 Q100,36 120,28 Q140,18 160,12 Q180,8 200,10 Q220,14 240,16 Q260,13 280,11 L300,10 L300,48 L0,48 Z" fill="url(#sparkGrad1)"/>
+            <path d="M0,30 Q20,32 40,38 Q60,44 80,42 Q100,36 120,28 Q140,18 160,12 Q180,8 200,10 Q220,14 240,16 Q260,13 280,11 L300,10" fill="none" stroke="var(--green)" stroke-width="2"/>
+          </svg>
+          <span class="sparkline-label">типичный профиль</span>
+        </div>
+        <div class="pattern-meta">
+          <span class="pattern-badge system">Системный</span>
+          <span class="pattern-badge phase">Любая фаза</span>
+        </div>
+      </div>
+
+      <!-- Pattern 2 -->
+      <div class="pattern-card" onclick="showDetail()">
+        <div class="pattern-card-header">
+          <div class="pattern-name">Gap Fill + Bounce</div>
+          <div class="pattern-match medium">61%</div>
+        </div>
+        <div class="match-bar"><div class="match-bar-fill medium" style="width: 61%"></div></div>
+        <div class="pattern-stats">
+          <div class="pattern-stat">
+            <span class="pattern-stat-label">Прогноз</span>
+            <span class="pattern-stat-value up">+1.4%</span>
+          </div>
+          <div class="pattern-stat">
+            <span class="pattern-stat-label">Точность</span>
+            <span class="pattern-stat-value">68%</span>
+          </div>
+          <div class="pattern-stat">
+            <span class="pattern-stat-label">Случаев</span>
+            <span class="pattern-stat-value">23/34</span>
+          </div>
+        </div>
+        <div class="sparkline-container">
+          <svg class="sparkline-svg" viewBox="0 0 300 48" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="sparkGrad2" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--orange)" stop-opacity="0.25"/>
+                <stop offset="100%" stop-color="var(--orange)" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M0,20 Q20,18 40,14 Q60,10 80,18 Q100,30 120,38 Q140,42 160,36 Q180,28 200,22 Q220,20 240,18 Q260,16 280,15 L300,14 L300,48 L0,48 Z" fill="url(#sparkGrad2)"/>
+            <path d="M0,20 Q20,18 40,14 Q60,10 80,18 Q100,30 120,38 Q140,42 160,36 Q180,28 200,22 Q220,20 240,18 Q260,16 280,15 L300,14" fill="none" stroke="var(--orange)" stroke-width="2"/>
+          </svg>
+        </div>
+        <div class="pattern-meta">
+          <span class="pattern-badge system">Системный</span>
+          <span class="pattern-badge phase">Mid-quarter</span>
+        </div>
+      </div>
+
+      <!-- Pattern 3 -->
+      <div class="pattern-card" onclick="showDetail()">
+        <div class="pattern-card-header">
+          <div class="pattern-name">Дип 1% → ралли</div>
+          <div class="pattern-match medium">58%</div>
+        </div>
+        <div class="match-bar"><div class="match-bar-fill medium" style="width: 58%"></div></div>
+        <div class="pattern-stats">
+          <div class="pattern-stat">
+            <span class="pattern-stat-label">Прогноз</span>
+            <span class="pattern-stat-value up">+2.3%</span>
+          </div>
+          <div class="pattern-stat">
+            <span class="pattern-stat-label">Точность</span>
+            <span class="pattern-stat-value">71%</span>
+          </div>
+          <div class="pattern-stat">
+            <span class="pattern-stat-label">Случаев</span>
+            <span class="pattern-stat-value">30/42</span>
+          </div>
+        </div>
+        <div class="sparkline-container">
+          <svg class="sparkline-svg" viewBox="0 0 300 48" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="sparkGrad3" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="var(--blue)" stop-opacity="0.25"/>
+                <stop offset="100%" stop-color="var(--blue)" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M0,28 Q30,30 60,40 Q90,46 110,38 Q130,24 160,14 Q190,8 220,12 Q250,16 280,14 L300,12 L300,48 L0,48 Z" fill="url(#sparkGrad3)"/>
+            <path d="M0,28 Q30,30 60,40 Q90,46 110,38 Q130,24 160,14 Q190,8 220,12 Q250,16 280,14 L300,12" fill="none" stroke="var(--blue)" stroke-width="2"/>
+          </svg>
+        </div>
+        <div class="pattern-meta">
+          <span class="pattern-badge user">Мой</span>
+          <span class="pattern-badge phase">Любая фаза</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Tab 2: Patterns catalog -->
+  <div id="tab-patterns" class="tab-view">
+    <div class="content-inner fade-in">
+      <div style="padding-top: 4px;">
+        <div style="font-size:13px;color:var(--text-hint);margin-bottom:12px;">Библиотека паттернов ALAB — нажми для подробностей</div>
+        <div class="chip-scroll">
+          <div class="chip active">Все (8)</div>
+          <div class="chip">Системные</div>
+          <div class="chip">Мои</div>
+          <div class="chip">Pre-earn</div>
+          <div class="chip">Post-earn</div>
+          <div class="chip">Multi-day</div>
+        </div>
+      </div>
+
+      <div class="sort-bar">
+        <span class="sort-label">8 паттернов обнаружено</span>
+        <span class="sort-value">Точность ▼</span>
+      </div>
+
+      <!-- ===== PATTERN 1 ===== -->
+      <div class="lib-card" onclick="showDetail()">
+        <div class="lib-card-top">
+          <div>
+            <div class="lib-card-name">Morning Dip → Rally</div>
+            <div class="lib-card-timeframe">Intraday · 15 мин · Regular session</div>
+          </div>
+          <div class="lib-card-winrate green">73%</div>
+        </div>
+        <div class="lib-card-sparkline">
+          <svg viewBox="0 0 300 50" preserveAspectRatio="none" style="width:100%;height:100%">
+            <path d="M0,28 Q15,30 30,36 Q50,44 70,46 Q90,42 110,32 Q130,20 160,10 Q190,6 220,8 Q250,12 280,10 L300,8" fill="none" stroke="var(--green)" stroke-width="2.5"/>
+            <path d="M0,28 Q15,30 30,36 Q50,44 70,46 Q90,42 110,32 Q130,20 160,10 Q190,6 220,8 Q250,12 280,10 L300,8 L300,50 L0,50Z" fill="url(#sparkGrad1)" opacity="0.4"/>
+            <!-- Phase markers -->
+            <text x="30" y="12" fill="#ff1744" font-size="8" font-family="JetBrains Mono" font-weight="600">ДИП</text>
+            <text x="130" y="8" fill="#00e676" font-size="8" font-family="JetBrains Mono" font-weight="600">РАЛЛИ</text>
+            <text x="230" y="8" fill="#448aff" font-size="8" font-family="JetBrains Mono" font-weight="600">РЕТЕСТ</text>
+          </svg>
+        </div>
+        <div class="lib-card-explain">
+          В первый час цена <strong>падает на 0.5−1.5%</strong>, затем разворачивается и <strong>уходит выше открытия на 2−3%</strong>. К закрытию откатывается на 30−50% от хая.
+        </div>
+        <div class="lib-card-stats-row">
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">Win</span>
+            <span class="lib-mini-value green">73%</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">Ср. ход</span>
+            <span class="lib-mini-value green">+2.1%</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">R:R</span>
+            <span class="lib-mini-value blue">2.6:1</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">n</span>
+            <span class="lib-mini-value">56</span>
+          </div>
+        </div>
+        <div class="lib-card-footer">
+          <span class="pattern-badge system">Системный</span>
+          <span class="pattern-badge phase">Любая фаза</span>
+          <span class="pattern-badge phase">Лучше в Q1, Q4</span>
+        </div>
+      </div>
+
+      <!-- ===== PATTERN 2 ===== -->
+      <div class="lib-card" onclick="showDetail()">
+        <div class="lib-card-top">
+          <div>
+            <div class="lib-card-name">Gap Up Fade</div>
+            <div class="lib-card-timeframe">Intraday · 15 мин · Первые 2 часа</div>
+          </div>
+          <div class="lib-card-winrate" style="color:var(--orange)">68%</div>
+        </div>
+        <div class="lib-card-sparkline">
+          <svg viewBox="0 0 300 50" preserveAspectRatio="none" style="width:100%;height:100%">
+            <path d="M0,12 Q20,10 40,8 Q60,6 80,12 Q100,22 120,32 Q150,38 180,34 Q210,28 240,24 Q270,22 300,22" fill="none" stroke="var(--red)" stroke-width="2.5"/>
+            <text x="10" y="10" fill="#00e676" font-size="8" font-family="JetBrains Mono" font-weight="600">ГЭП ▲</text>
+            <text x="100" y="48" fill="#ff1744" font-size="8" font-family="JetBrains Mono" font-weight="600">ФЕЙД ▼</text>
+            <text x="220" y="20" fill="#448aff" font-size="8" font-family="JetBrains Mono" font-weight="600">СТАБ.</text>
+          </svg>
+        </div>
+        <div class="lib-card-explain">
+          Акция открывается с <strong>гэпом вверх > 1%</strong>. В первые 1−2 часа <strong>цена закрывает гэп</strong> — возвращается к уровню предыдущего закрытия. Часто продолжает падение ещё 0.3−0.5%.
+        </div>
+        <div class="lib-card-stats-row">
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">Win</span>
+            <span class="lib-mini-value" style="color:var(--orange)">68%</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">Ср. ход</span>
+            <span class="lib-mini-value" style="color:var(--red)">−1.4%</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">R:R</span>
+            <span class="lib-mini-value blue">1.8:1</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">n</span>
+            <span class="lib-mini-value">34</span>
+          </div>
+        </div>
+        <div class="lib-card-footer">
+          <span class="pattern-badge system">Системный</span>
+          <span class="pattern-badge" style="background:var(--orange-dim);color:var(--orange);">Post-earnings</span>
+          <span class="pattern-badge phase">Шорт</span>
+        </div>
+      </div>
+
+      <!-- ===== PATTERN 3 ===== -->
+      <div class="lib-card" onclick="showDetail()">
+        <div class="lib-card-top">
+          <div>
+            <div class="lib-card-name">VWAP Reclaim</div>
+            <div class="lib-card-timeframe">Intraday · 15 мин · 10:00−12:00</div>
+          </div>
+          <div class="lib-card-winrate" style="color:var(--orange)">65%</div>
+        </div>
+        <div class="lib-card-sparkline">
+          <svg viewBox="0 0 300 50" preserveAspectRatio="none" style="width:100%;height:100%">
+            <path d="M0,20 Q30,24 60,32 Q90,38 110,36 Q130,28 160,18 Q190,12 220,10 Q250,14 280,12 L300,10" fill="none" stroke="var(--green)" stroke-width="2.5"/>
+            <!-- VWAP line -->
+            <line x1="0" y1="25" x2="300" y2="22" stroke="var(--orange)" stroke-width="1" stroke-dasharray="4 3" opacity="0.6"/>
+            <text x="250" y="18" fill="#ff9100" font-size="7" font-family="JetBrains Mono">VWAP</text>
+            <text x="60" y="48" fill="#ff1744" font-size="8" font-family="JetBrains Mono" font-weight="600">ПОД VWAP</text>
+            <text x="170" y="8" fill="#00e676" font-size="8" font-family="JetBrains Mono" font-weight="600">НАД VWAP</text>
+          </svg>
+        </div>
+        <div class="lib-card-explain">
+          Цена торгуется <strong>под VWAP первые 30−90 мин</strong>, затем <strong>пробивает VWAP вверх с объёмом</strong>. После пробоя VWAP становится поддержкой. Цена закрывается <strong>+1.5−2.5% выше VWAP</strong>.
+        </div>
+        <div class="lib-card-stats-row">
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">Win</span>
+            <span class="lib-mini-value" style="color:var(--orange)">65%</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">Ср. ход</span>
+            <span class="lib-mini-value green">+1.8%</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">R:R</span>
+            <span class="lib-mini-value blue">2.0:1</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">n</span>
+            <span class="lib-mini-value">28</span>
+          </div>
+        </div>
+        <div class="lib-card-footer">
+          <span class="pattern-badge system">Системный</span>
+          <span class="pattern-badge phase">Любая фаза</span>
+          <span class="pattern-badge phase">Объём критичен</span>
+        </div>
+      </div>
+
+      <!-- ===== PATTERN 4 ===== -->
+      <div class="lib-card" onclick="showDetail()">
+        <div class="lib-card-top">
+          <div>
+            <div class="lib-card-name">Volume Spike Breakout</div>
+            <div class="lib-card-timeframe">Intraday · 15 мин · 10:00−14:00</div>
+          </div>
+          <div class="lib-card-winrate" style="color:var(--orange)">62%</div>
+        </div>
+        <div class="lib-card-sparkline">
+          <svg viewBox="0 0 300 50" preserveAspectRatio="none" style="width:100%;height:100%">
+            <path d="M0,30 Q30,30 60,28 Q90,28 110,26 Q130,24 150,12 Q170,5 190,4 Q210,6 240,8 Q270,10 300,8" fill="none" stroke="var(--green)" stroke-width="2.5"/>
+            <!-- Volume spike -->
+            <rect x="128" y="38" width="12" height="12" fill="var(--green)" opacity="0.3" rx="2"/>
+            <rect x="142" y="32" width="12" height="18" fill="var(--green)" opacity="0.5" rx="2"/>
+            <rect x="156" y="36" width="12" height="14" fill="var(--green)" opacity="0.3" rx="2"/>
+            <text x="90" y="34" fill="#8b8b9e" font-size="8" font-family="JetBrains Mono">БАЗА</text>
+            <text x="140" y="10" fill="#00e676" font-size="8" font-family="JetBrains Mono" font-weight="600">ПРОБОЙ</text>
+          </svg>
+        </div>
+        <div class="lib-card-explain">
+          Цена <strong>консолидируется 1−3 часа</strong> в узком диапазоне (< 0.5%). Затем <strong>резкий пробой вверх с объёмом 2x+</strong> от среднего. После пробоя цена обычно <strong>не возвращается в диапазон</strong>.
+        </div>
+        <div class="lib-card-stats-row">
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">Win</span>
+            <span class="lib-mini-value" style="color:var(--orange)">62%</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">Ср. ход</span>
+            <span class="lib-mini-value green">+3.1%</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">R:R</span>
+            <span class="lib-mini-value blue">3.1:1</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">n</span>
+            <span class="lib-mini-value">19</span>
+          </div>
+        </div>
+        <div class="lib-card-footer">
+          <span class="pattern-badge system">Системный</span>
+          <span class="pattern-badge" style="background:var(--green-dim);color:var(--green);">Pre-earnings</span>
+          <span class="pattern-badge phase">Высокий R:R</span>
+        </div>
+      </div>
+
+      <!-- ===== PATTERN 5 ===== -->
+      <div class="lib-card" onclick="showDetail()">
+        <div class="lib-card-top">
+          <div>
+            <div class="lib-card-name">Mean Reversion 3-Day</div>
+            <div class="lib-card-timeframe">Multi-day · Дневной · 3 дня</div>
+          </div>
+          <div class="lib-card-winrate green">70%</div>
+        </div>
+        <div class="lib-card-sparkline">
+          <svg viewBox="0 0 300 50" preserveAspectRatio="none" style="width:100%;height:100%">
+            <path d="M0,10 Q40,14 80,22 Q120,34 160,40 Q200,36 240,26 Q270,18 300,14" fill="none" stroke="var(--green)" stroke-width="2.5"/>
+            <!-- Day separators -->
+            <line x1="100" y1="0" x2="100" y2="50" stroke="var(--text-hint)" stroke-width="0.5" stroke-dasharray="3 3" opacity="0.4"/>
+            <line x1="200" y1="0" x2="200" y2="50" stroke="var(--text-hint)" stroke-width="0.5" stroke-dasharray="3 3" opacity="0.4"/>
+            <text x="25" y="10" fill="#ff1744" font-size="8" font-family="JetBrains Mono" font-weight="600">ДЕНЬ 1−2 ▼</text>
+            <text x="210" y="14" fill="#00e676" font-size="8" font-family="JetBrains Mono" font-weight="600">ДЕНЬ 3 ▲</text>
+          </svg>
+        </div>
+        <div class="lib-card-explain">
+          После <strong>2 красных дней подряд</strong> (суммарно −3% или больше), <strong>третий день с вероятностью 70% зелёный</strong>. Средний отскок +1.6%. Работает лучше в mid-quarter, когда нет earnings-страха.
+        </div>
+        <div class="lib-card-stats-row">
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">Win</span>
+            <span class="lib-mini-value green">70%</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">Ср. ход</span>
+            <span class="lib-mini-value green">+1.6%</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">R:R</span>
+            <span class="lib-mini-value blue">1.5:1</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">n</span>
+            <span class="lib-mini-value">23</span>
+          </div>
+        </div>
+        <div class="lib-card-footer">
+          <span class="pattern-badge system">Системный</span>
+          <span class="pattern-badge phase">Mid-quarter</span>
+          <span class="pattern-badge phase">Multi-day</span>
+        </div>
+      </div>
+
+      <!-- ===== PATTERN 6 ===== -->
+      <div class="lib-card" onclick="showDetail()">
+        <div class="lib-card-top">
+          <div>
+            <div class="lib-card-name">Post-Earnings Drift</div>
+            <div class="lib-card-timeframe">Multi-day · Дневной · 1−5 дней</div>
+          </div>
+          <div class="lib-card-winrate" style="color:var(--orange)">66%</div>
+        </div>
+        <div class="lib-card-sparkline">
+          <svg viewBox="0 0 300 50" preserveAspectRatio="none" style="width:100%;height:100%">
+            <path d="M0,25 Q10,8 20,10 Q40,12 60,14 Q100,16 140,18 Q180,20 220,20 Q260,22 300,22" fill="none" stroke="var(--green)" stroke-width="2.5"/>
+            <line x1="20" y1="0" x2="20" y2="50" stroke="var(--orange)" stroke-width="1.5" opacity="0.5"/>
+            <text x="4" y="32" fill="#ff9100" font-size="7" font-family="JetBrains Mono" font-weight="600">ER</text>
+            <text x="30" y="10" fill="#00e676" font-size="8" font-family="JetBrains Mono" font-weight="600">ДРИФТ В СТОРОНУ ГЭПА →</text>
+          </svg>
+        </div>
+        <div class="lib-card-explain">
+          После <strong>гэпа на earnings > 5%</strong>, цена <strong>продолжает двигаться в направлении гэпа</strong> следующие 3−5 дней. Если гэп вверх — покупай, вниз — шорти. <strong>Дрифт = 20−40% от размера гэпа.</strong>
+        </div>
+        <div class="lib-card-stats-row">
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">Win</span>
+            <span class="lib-mini-value" style="color:var(--orange)">66%</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">Ср. ход</span>
+            <span class="lib-mini-value green">+2.8%</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">R:R</span>
+            <span class="lib-mini-value blue">1.9:1</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">n</span>
+            <span class="lib-mini-value">12</span>
+          </div>
+        </div>
+        <div class="lib-card-footer">
+          <span class="pattern-badge system">Системный</span>
+          <span class="pattern-badge" style="background:var(--orange-dim);color:var(--orange);">Post-earnings</span>
+          <span class="pattern-badge phase">Multi-day</span>
+        </div>
+      </div>
+
+      <!-- ===== PATTERN 7 ===== -->
+      <div class="lib-card" onclick="showDetail()">
+        <div class="lib-card-top">
+          <div>
+            <div class="lib-card-name">Дип 1% → ралли</div>
+            <div class="lib-card-timeframe">Intraday · 15 мин · Первые 90 мин</div>
+          </div>
+          <div class="lib-card-winrate green">71%</div>
+        </div>
+        <div class="lib-card-sparkline">
+          <svg viewBox="0 0 300 50" preserveAspectRatio="none" style="width:100%;height:100%">
+            <path d="M0,22 Q30,26 60,38 Q90,46 110,40 Q130,26 160,14 Q190,8 220,10 Q250,14 280,12 L300,10" fill="none" stroke="var(--blue)" stroke-width="2.5"/>
+            <text x="50" y="48" fill="#ff1744" font-size="8" font-family="JetBrains Mono" font-weight="600">ДИП ≥1%</text>
+            <text x="160" y="8" fill="#00e676" font-size="8" font-family="JetBrains Mono" font-weight="600">РАЛЛИ</text>
+          </svg>
+        </div>
+        <div class="lib-card-explain">
+          Мой паттерн. Если в <strong>первые 60−90 мин дип ≥ 1%</strong> от открытия, то ралли до закрытия с вероятностью 71%. <strong>Средний ход от дна: +3.3%</strong>. Похож на Morning Dip, но с более жёстким порогом.
+        </div>
+        <div class="lib-card-stats-row">
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">Win</span>
+            <span class="lib-mini-value green">71%</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">Ср. ход</span>
+            <span class="lib-mini-value green">+2.3%</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">R:R</span>
+            <span class="lib-mini-value blue">2.3:1</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">n</span>
+            <span class="lib-mini-value">42</span>
+          </div>
+        </div>
+        <div class="lib-card-footer">
+          <span class="pattern-badge user">Мой паттерн</span>
+          <span class="pattern-badge phase">Любая фаза</span>
+        </div>
+      </div>
+
+      <!-- ===== PATTERN 8 ===== -->
+      <div class="lib-card" onclick="showDetail()">
+        <div class="lib-card-top">
+          <div>
+            <div class="lib-card-name">Пятница → Понедельник Gap</div>
+            <div class="lib-card-timeframe">Multi-day · Дневной · 2 дня</div>
+          </div>
+          <div class="lib-card-winrate" style="color:var(--orange)">64%</div>
+        </div>
+        <div class="lib-card-sparkline">
+          <svg viewBox="0 0 300 50" preserveAspectRatio="none" style="width:100%;height:100%">
+            <path d="M0,15 Q40,18 80,22 Q120,28 140,30" fill="none" stroke="var(--green)" stroke-width="2.5"/>
+            <path d="M160,20 Q200,18 240,16 Q270,14 300,12" fill="none" stroke="var(--green)" stroke-width="2.5"/>
+            <line x1="150" y1="0" x2="150" y2="50" stroke="var(--text-hint)" stroke-width="1" stroke-dasharray="4 3" opacity="0.5"/>
+            <text x="50" y="42" fill="#00e676" font-size="8" font-family="JetBrains Mono" font-weight="600">ПТ ▲</text>
+            <text x="115" y="12" fill="#8b8b9e" font-size="7" font-family="JetBrains Mono">ВЫХОДНЫЕ</text>
+            <text x="200" y="10" fill="#00e676" font-size="8" font-family="JetBrains Mono" font-weight="600">ПН ГЭП ▲</text>
+          </svg>
+        </div>
+        <div class="lib-card-explain">
+          Мой паттерн. Если <strong>пятница закрылась зелёной (> +1%)</strong>, то <strong>понедельник с гэпом вверх</strong> в 64% случаев. Средний гэп +0.7%. Работает хуже перед длинными выходными и перед earnings.
+        </div>
+        <div class="lib-card-stats-row">
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">Win</span>
+            <span class="lib-mini-value" style="color:var(--orange)">64%</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">Ср. гэп</span>
+            <span class="lib-mini-value green">+0.7%</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">R:R</span>
+            <span class="lib-mini-value blue">1.4:1</span>
+          </div>
+          <div class="lib-mini-stat">
+            <span class="lib-mini-label">n</span>
+            <span class="lib-mini-value">31</span>
+          </div>
+        </div>
+        <div class="lib-card-footer">
+          <span class="pattern-badge user">Мой паттерн</span>
+          <span class="pattern-badge phase">Mid-quarter</span>
+          <span class="pattern-badge phase">Multi-day</span>
+        </div>
+      </div>
+
+      <div class="create-pattern-cta">
+        💬 Описать новый паттерн боту
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 3: History -->
+  <div id="tab-history" class="tab-view">
+    <div class="content-inner fade-in">
+      <div class="calendar-header">
+        <button class="calendar-nav-btn">‹</button>
+        <span class="calendar-month">Март 2026</span>
+        <button class="calendar-nav-btn">›</button>
+      </div>
+
+      <div class="calendar-grid">
+        <div class="calendar-day-header">Пн</div>
+        <div class="calendar-day-header">Вт</div>
+        <div class="calendar-day-header">Ср</div>
+        <div class="calendar-day-header">Чт</div>
+        <div class="calendar-day-header">Пт</div>
+
+        <!-- Week 1 -->
+        <div class="calendar-day neutral"><span class="calendar-day-num">2</span></div>
+        <div class="calendar-day win"><span class="calendar-day-num">3</span><span class="calendar-day-dot"></span></div>
+        <div class="calendar-day win"><span class="calendar-day-num">4</span><span class="calendar-day-dot"></span></div>
+        <div class="calendar-day loss"><span class="calendar-day-num">5</span><span class="calendar-day-dot"></span></div>
+        <div class="calendar-day win"><span class="calendar-day-num">6</span><span class="calendar-day-dot"></span></div>
+
+        <!-- Week 2 -->
+        <div class="calendar-day win"><span class="calendar-day-num">9</span><span class="calendar-day-dot"></span></div>
+        <div class="calendar-day loss"><span class="calendar-day-num">10</span><span class="calendar-day-dot"></span></div>
+        <div class="calendar-day win"><span class="calendar-day-num">11</span><span class="calendar-day-dot"></span></div>
+        <div class="calendar-day win"><span class="calendar-day-num">12</span><span class="calendar-day-dot"></span></div>
+        <div class="calendar-day win"><span class="calendar-day-num">13</span><span class="calendar-day-dot"></span></div>
+
+        <!-- Week 3 -->
+        <div class="calendar-day loss"><span class="calendar-day-num">16</span><span class="calendar-day-dot"></span></div>
+        <div class="calendar-day today neutral"><span class="calendar-day-num">17</span></div>
+        <div class="calendar-day neutral"><span class="calendar-day-num">18</span></div>
+        <div class="calendar-day neutral"><span class="calendar-day-num">19</span></div>
+        <div class="calendar-day neutral"><span class="calendar-day-num">20</span></div>
+      </div>
+
+      <!-- Win rate summary -->
+      <div style="display:flex;align-items:center;justify-content:center;gap:20px;padding:8px 0 20px;font-size:13px;color:var(--text-secondary);">
+        <span style="display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;"></span> 8 верно</span>
+        <span style="display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block;"></span> 3 неверно</span>
+        <span style="font-family:var(--font-mono);font-weight:600;color:var(--green);">73%</span>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">Последние дни</div>
+      </div>
+
+      <div class="history-card">
+        <div class="history-card-header">
+          <span class="history-date">16 марта, Пн</span>
+          <span class="history-result down">-1.2%</span>
+        </div>
+        <div class="history-ohlc">
+          <span>O 132.80</span>
+          <span>H 133.90</span>
+          <span>L 130.10</span>
+          <span>C 131.20</span>
+        </div>
+        <div class="history-pattern">
+          <span class="history-pattern-name">Gap Up Fade</span>
+          <span>
+            <span class="history-prediction">прогноз -1.4%</span>
+            <span class="history-actual up" style="color:var(--green);margin-left:8px;">✓</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="history-card">
+        <div class="history-card-header">
+          <span class="history-date">13 марта, Пт</span>
+          <span class="history-result up">+2.8%</span>
+        </div>
+        <div class="history-ohlc">
+          <span>O 128.50</span>
+          <span>H 134.20</span>
+          <span>L 128.10</span>
+          <span>C 132.10</span>
+        </div>
+        <div class="history-pattern">
+          <span class="history-pattern-name">Morning Dip → Rally</span>
+          <span>
+            <span class="history-prediction">прогноз +2.1%</span>
+            <span class="history-actual up" style="color:var(--green);margin-left:8px;">✓</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="history-card">
+        <div class="history-card-header">
+          <span class="history-date">12 марта, Чт</span>
+          <span class="history-result up">+1.5%</span>
+        </div>
+        <div class="history-ohlc">
+          <span>O 126.40</span>
+          <span>H 129.80</span>
+          <span>L 126.00</span>
+          <span>C 128.30</span>
+        </div>
+        <div class="history-pattern">
+          <span class="history-pattern-name">VWAP Reclaim</span>
+          <span>
+            <span class="history-prediction">прогноз +1.8%</span>
+            <span class="history-actual up" style="color:var(--green);margin-left:8px;">✓</span>
+          </span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Tab 4: More -->
+  <div id="tab-more" class="tab-view">
+    <div class="content-inner fade-in">
+      <div class="settings-group">
+        <div class="settings-group-title">Тикеры</div>
+        <div class="settings-item">
+          <div class="settings-item-left">
+            <div class="settings-icon blue">📈</div>
+            <span class="settings-item-label">ALAB</span>
+          </div>
+          <div class="settings-item-value">
+            <span style="color:var(--green);font-family:var(--font-mono);font-size:13px;">+1.80%</span>
+            <span class="settings-item-arrow">›</span>
+          </div>
+        </div>
+        <div class="settings-item" style="border-top:none;">
+          <div class="settings-item-left">
+            <div class="settings-icon" style="background:rgba(255,255,255,0.06);font-size:20px;">+</div>
+            <span class="settings-item-label" style="color:var(--accent);">Добавить тикер</span>
+          </div>
+          <span class="settings-item-arrow" style="color:var(--accent);">›</span>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">Паттерны</div>
+        <div class="settings-item">
+          <div class="settings-item-left">
+            <div class="settings-icon green">🤖</div>
+            <span class="settings-item-label">Системные</span>
+          </div>
+          <div class="settings-item-value">
+            <span>6</span>
+            <span class="settings-item-arrow">›</span>
+          </div>
+        </div>
+        <div class="settings-item" style="border-top:none;">
+          <div class="settings-item-left">
+            <div class="settings-icon orange">✍️</div>
+            <span class="settings-item-label">Мои паттерны</span>
+          </div>
+          <div class="settings-item-value">
+            <span>2</span>
+            <span class="settings-item-arrow">›</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">Инструменты</div>
+        <div class="settings-item">
+          <div class="settings-item-left">
+            <div class="settings-icon blue">💬</div>
+            <span class="settings-item-label">Создать паттерн</span>
+          </div>
+          <span class="settings-item-arrow">›</span>
+        </div>
+        <div class="settings-item" style="border-top:none;">
+          <div class="settings-item-left">
+            <div class="settings-icon green">📊</div>
+            <span class="settings-item-label">Бэктест</span>
+          </div>
+          <span class="settings-item-arrow">›</span>
+        </div>
+      </div>
+
+      <div style="text-align:center;padding:24px 0;font-size:12px;color:var(--text-hint);">
+        Stock Pattern Analyzer v0.1<br>
+        Данные: Polygon.io · AI: Claude
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PATTERN DETAIL OVERLAY -->
+<div class="detail-overlay" id="patternDetail">
+  <div class="detail-header">
+    <button class="detail-back" onclick="closeDetail()">‹</button>
+    <span class="detail-title">Morning Dip → Rally</span>
+    <span class="pattern-badge system">Системный</span>
+  </div>
+
+  <div class="detail-scroll">
+
+    <!-- Hero stats -->
+    <div class="detail-hero">
+      <div class="detail-hero-name">Morning Dip → Rally</div>
+      <div class="detail-hero-type">Интрадей паттерн · 15-мин таймфрейм</div>
+    </div>
+
+    <div class="detail-big-stats">
+      <div class="detail-big-stat">
+        <div class="detail-big-stat-value green">73%</div>
+        <div class="detail-big-stat-label">Win Rate</div>
+      </div>
+      <div class="detail-big-stat">
+        <div class="detail-big-stat-value green">+2.1%</div>
+        <div class="detail-big-stat-label">Сред. доход</div>
+      </div>
+      <div class="detail-big-stat">
+        <div class="detail-big-stat-value blue">56</div>
+        <div class="detail-big-stat-label">Случаев</div>
+      </div>
+    </div>
+
+    <!-- Confidence -->
+    <div class="confidence-meter">
+      <div class="confidence-label">Надёжность паттерна</div>
+      <div class="confidence-score">B+</div>
+      <div class="confidence-score-label">Высокая выборка, стабильный win rate</div>
+      <div class="confidence-bar-outer" style="margin-top:12px;">
+        <div class="confidence-bar-inner" style="width: 76%;"></div>
+      </div>
+      <div class="confidence-labels">
+        <span>Слабый</span>
+        <span>Средний</span>
+        <span>Сильный</span>
+      </div>
+    </div>
+
+    <!-- Average day chart -->
+    <div class="detail-chart">
+      <div class="detail-chart-title">Усреднённый профиль дня (±1 std)</div>
+      <div class="detail-chart-canvas">
+        <svg viewBox="0 0 360 180" preserveAspectRatio="none" style="width:100%;height:100%;">
+          <!-- Grid -->
+          <line class="grid-line" x1="0" y1="45" x2="360" y2="45"/>
+          <line class="grid-line" x1="0" y1="90" x2="360" y2="90"/>
+          <line class="grid-line" x1="0" y1="135" x2="360" y2="135"/>
+          <line class="price-line" x1="0" y1="90" x2="360" y2="90"/>
+
+          <!-- Time labels -->
+          <text x="0" y="178" fill="#55556a" font-size="9" font-family="JetBrains Mono">9:30</text>
+          <text x="60" y="178" fill="#55556a" font-size="9" font-family="JetBrains Mono">10:00</text>
+          <text x="120" y="178" fill="#55556a" font-size="9" font-family="JetBrains Mono">11:00</text>
+          <text x="200" y="178" fill="#55556a" font-size="9" font-family="JetBrains Mono">12:00</text>
+          <text x="270" y="178" fill="#55556a" font-size="9" font-family="JetBrains Mono">14:00</text>
+          <text x="335" y="178" fill="#55556a" font-size="9" font-family="JetBrains Mono">16:00</text>
+
+          <!-- Confidence band (±1 std) -->
+          <path d="M0,85 Q15,88 30,95 Q50,110 70,120 Q90,130 100,125 Q120,110 140,95 Q160,75 180,60 Q200,50 220,45 Q240,42 260,44 Q280,46 300,48 Q320,46 340,44 L360,42
+                   L360,80 Q340,75 320,72 Q300,70 280,68 Q260,65 240,62 Q220,58 200,55 Q180,48 160,42 Q140,50 120,65 Q100,80 90,90 Q70,100 50,98 Q30,92 15,88 L0,85 Z"
+                fill="rgba(0,230,118,0.08)" stroke="none"/>
+
+          <!-- Average line -->
+          <path d="M0,88 Q15,90 30,98 Q50,108 70,118 Q90,125 100,120 Q120,105 140,88 Q160,68 180,55 Q200,48 220,43 Q240,40 260,42 Q280,45 300,46 Q320,44 340,42 L360,40"
+                fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round"/>
+
+          <!-- Phase annotations -->
+          <!-- Dip zone -->
+          <rect x="0" y="4" width="100" height="20" rx="4" fill="rgba(255,23,68,0.15)"/>
+          <text x="12" y="17" fill="#ff1744" font-size="9" font-family="DM Sans" font-weight="600">ДИП -0.8%</text>
+
+          <!-- Rally zone -->
+          <rect x="110" y="4" width="110" height="20" rx="4" fill="rgba(0,230,118,0.15)"/>
+          <text x="122" y="17" fill="#00e676" font-size="9" font-family="DM Sans" font-weight="600">РАЛЛИ +2.8%</text>
+
+          <!-- Retest zone -->
+          <rect x="230" y="4" width="120" height="20" rx="4" fill="rgba(68,138,255,0.15)"/>
+          <text x="242" y="17" fill="#448aff" font-size="9" font-family="DM Sans" font-weight="600">РЕТЕСТ / ЗАКР.</text>
+
+          <!-- Dip marker -->
+          <circle cx="90" cy="125" r="4" fill="var(--red)" stroke="var(--bg)" stroke-width="2"/>
+          <line x1="90" y1="125" x2="90" y2="160" stroke="var(--red)" stroke-width="1" stroke-dasharray="3 3"/>
+          <text x="70" y="168" fill="#ff1744" font-size="8" font-family="JetBrains Mono">LOW</text>
+
+          <!-- High marker -->
+          <circle cx="250" cy="40" r="4" fill="var(--green)" stroke="var(--bg)" stroke-width="2"/>
+          <text x="255" y="38" fill="#00e676" font-size="8" font-family="JetBrains Mono">HIGH</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- STEP BY STEP EXPLANATION -->
+    <div class="detail-section-title">Как работает паттерн</div>
+
+    <div class="timeline">
+      <!-- Step 1: Setup -->
+      <div class="timeline-step">
+        <div class="timeline-dot red"></div>
+        <div class="timeline-time">9:30 — 10:30 · Дип</div>
+        <div class="timeline-desc">
+          После открытия цена <strong>падает на 0.5—1.5%</strong> от цены открытия. Это происходит в <strong>первые 30–60 минут</strong> торгов.
+        </div>
+        <div class="timeline-detail">
+          Пример: Открытие <span class="mono">$129.10</span>, дип до <span class="mono">$128.80</span> (−0.23%). Средний дип: <span class="mono">−0.82%</span>, макс: <span class="mono">−1.6%</span>
+        </div>
+      </div>
+
+      <!-- Step 2: Reversal -->
+      <div class="timeline-step">
+        <div class="timeline-dot green"></div>
+        <div class="timeline-time">10:30 — 12:00 · Разворот и ралли</div>
+        <div class="timeline-desc">
+          Цена разворачивается и <strong>уходит выше цены открытия</strong>. Движение вверх обычно <strong>в 2–3 раза больше</strong> дипа. Объём растёт.
+        </div>
+        <div class="timeline-detail">
+          Пример: От лоу <span class="mono">$128.80</span> рост до <span class="mono">$132.50</span> (+2.87%). Средний ралли от лоу: <span class="mono">+2.8%</span>
+        </div>
+      </div>
+
+      <!-- Step 3: Retest -->
+      <div class="timeline-step">
+        <div class="timeline-dot blue"></div>
+        <div class="timeline-time">12:00 — 14:00 · Откат / Ретест</div>
+        <div class="timeline-desc">
+          После хая цена <strong>откатывается на 30—50%</strong> от ралли-движения. Тестирует зону поддержки, но <strong>не опускается ниже открытия</strong>.
+        </div>
+        <div class="timeline-detail">
+          Пример: От хая <span class="mono">$132.50</span> откат до <span class="mono">$131.00</span> (−1.13%). Средний откат: <span class="mono">−38%</span> от ралли
+        </div>
+      </div>
+
+      <!-- Step 4: Close -->
+      <div class="timeline-step">
+        <div class="timeline-dot orange"></div>
+        <div class="timeline-time">14:00 — 16:00 · Закрытие</div>
+        <div class="timeline-desc">
+          Цена <strong>стабилизируется</strong> между ретестом и хаем. Закрытие обычно <strong>+1.5—2.5% выше открытия</strong>.
+        </div>
+        <div class="timeline-detail">
+          Средняя цена закрытия: <span class="mono">+2.1%</span> от открытия. Диапазон: <span class="mono">+0.8%</span> до <span class="mono">+3.8%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRADE LEVELS -->
+    <div class="detail-section-title">Торговые уровни (сегодня)</div>
+
+    <div class="trade-levels">
+      <div class="trade-levels-header">
+        Рассчитано от O: $129.10
+      </div>
+      <div class="trade-levels-visual">
+        <div class="trade-level-bar">
+          <div class="trade-level">
+            <span class="trade-level-tag tp">TP2</span>
+            <div class="trade-level-line tp2"></div>
+            <span class="trade-level-price green">$132.72</span>
+            <span class="trade-level-pct" style="color:var(--green)">+2.8%</span>
+          </div>
+          <div class="trade-level">
+            <span class="trade-level-tag tp">TP1</span>
+            <div class="trade-level-line tp1"></div>
+            <span class="trade-level-price green">$131.81</span>
+            <span class="trade-level-pct" style="color:var(--green)">+2.1%</span>
+          </div>
+          <div class="trade-level">
+            <span class="trade-level-tag entry">ВХОД</span>
+            <div class="trade-level-line entry"></div>
+            <span class="trade-level-price blue">$129.10</span>
+            <span class="trade-level-pct">open</span>
+          </div>
+          <div class="trade-level">
+            <span class="trade-level-tag stop">СТОП</span>
+            <div class="trade-level-line stop"></div>
+            <span class="trade-level-price red">$128.07</span>
+            <span class="trade-level-pct" style="color:var(--red)">−0.8%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- R:R -->
+      <div style="padding: 0 16px 16px;">
+        <div class="trade-rr">
+          <div class="trade-rr-item">
+            <div class="trade-rr-value green">+2.1%</div>
+            <div class="trade-rr-label">Цель TP1</div>
+          </div>
+          <div class="trade-rr-item">
+            <div class="trade-rr-value blue">2.6:1</div>
+            <div class="trade-rr-label">Risk/Reward</div>
+          </div>
+          <div class="trade-rr-item">
+            <div class="trade-rr-value red">−0.8%</div>
+            <div class="trade-rr-label">Макс. риск</div>
+          </div>
+        </div>
+
+        <!-- Trade timing -->
+        <div class="trade-timing">
+          <div class="trade-timing-row">
+            <span class="trade-timing-label">Вход после</span>
+            <span class="trade-timing-value" style="color:var(--accent)">пробой Open вверх</span>
+          </div>
+          <div class="trade-timing-row">
+            <span class="trade-timing-label">Оптимальное время</span>
+            <span class="trade-timing-value">10:15 — 10:45 ET</span>
+          </div>
+          <div class="trade-timing-row">
+            <span class="trade-timing-label">Стоп-лосс</span>
+            <span class="trade-timing-value" style="color:var(--red)">ниже лоу дипа</span>
+          </div>
+          <div class="trade-timing-row">
+            <span class="trade-timing-label">Фиксация 50%</span>
+            <span class="trade-timing-value" style="color:var(--green)">на TP1 (+2.1%)</span>
+          </div>
+          <div class="trade-timing-row">
+            <span class="trade-timing-label">Трейлинг остаток</span>
+            <span class="trade-timing-value" style="color:var(--green)">до TP2 или 14:00</span>
+          </div>
+          <div class="trade-timing-row">
+            <span class="trade-timing-label">Expectancy</span>
+            <span class="trade-timing-value" style="color:var(--green)">+$1.05 на $100</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FAIL ANALYSIS -->
+    <div class="detail-section-title">Почему не срабатывает (15 из 56)</div>
+
+    <div class="fail-analysis">
+      <div class="fail-header">Причины провала</div>
+      <div class="fail-reason">
+        <span class="fail-reason-pct">40%</span>
+        <div class="fail-reason-text"><strong>SPY падал > 1%</strong> — рынок тянул вниз, разворота не было</div>
+      </div>
+      <div class="fail-reason">
+        <span class="fail-reason-pct">27%</span>
+        <div class="fail-reason-text"><strong>Post-earnings неделя</strong> — повышенная волатильность ломает паттерн</div>
+      </div>
+      <div class="fail-reason">
+        <span class="fail-reason-pct">20%</span>
+        <div class="fail-reason-text"><strong>Объём ниже среднего</strong> — нет покупателей на развороте</div>
+      </div>
+      <div class="fail-reason">
+        <span class="fail-reason-pct">13%</span>
+        <div class="fail-reason-text"><strong>Макро-событие</strong> (FOMC, CPI) — внешний шок менял динамику</div>
+      </div>
+    </div>
+
+    <!-- Conditions -->
+    <div class="detail-section-title">Условия срабатывания</div>
+
+    <div class="conditions-list">
+      <div class="condition-item">
+        <div class="condition-icon" style="background:var(--red-dim);">📉</div>
+        <div class="condition-text">
+          <strong>Дип ≥ 0.5%</strong> от открытия в первые 60 минут торгов (regular session)
+        </div>
+      </div>
+      <div class="condition-item">
+        <div class="condition-icon" style="background:var(--green-dim);">📊</div>
+        <div class="condition-text">
+          <strong>Объём выше среднего</strong> — volume ratio ≥ 1.2x от 20-дневного среднего на момент дипа
+        </div>
+      </div>
+      <div class="condition-item">
+        <div class="condition-icon" style="background:var(--blue-dim);">📈</div>
+        <div class="condition-text">
+          <strong>Рынок нейтральный/бычий</strong> — SPY не падает более 0.5% на момент дипа
+        </div>
+      </div>
+      <div class="condition-item">
+        <div class="condition-icon" style="background:var(--orange-dim);">📅</div>
+        <div class="condition-text">
+          <strong>Не день отчёта</strong> и не первые 5 дней после earnings
+        </div>
+      </div>
+    </div>
+
+    <!-- Detailed stats -->
+    <div class="detail-section-title">Детальная статистика</div>
+
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-box-label">Win Rate</div>
+        <div class="stat-box-value green">73%</div>
+        <div class="stat-box-sub">41 из 56 дней</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-box-label">Средний доход</div>
+        <div class="stat-box-value green">+2.1%</div>
+        <div class="stat-box-sub">от открытия к закрытию</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-box-label">Макс. просадка</div>
+        <div class="stat-box-value red">-1.6%</div>
+        <div class="stat-box-sub">худший дип в паттерне</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-box-label">Лучший день</div>
+        <div class="stat-box-value green">+5.2%</div>
+        <div class="stat-box-sub">2025-11-14</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-box-label">Худший день</div>
+        <div class="stat-box-value red">-2.1%</div>
+        <div class="stat-box-sub">2025-08-22</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-box-label">Sharpe Ratio</div>
+        <div class="stat-box-value blue" style="color:var(--accent)">1.42</div>
+        <div class="stat-box-sub">хорошая надёжность</div>
+      </div>
+    </div>
+
+    <!-- Phase breakdown: earnings cycle -->
+    <div class="detail-section-title">По фазам earnings-цикла</div>
+
+    <div class="phase-breakdown">
+      <div class="phase-row">
+        <span class="phase-name">Pre-earnings</span>
+        <div class="phase-bar-bg"><div class="phase-bar-fill high" style="width:78%"></div></div>
+        <span class="phase-pct high">78%</span>
+        <span class="phase-count">18/23</span>
+      </div>
+      <div class="phase-row">
+        <span class="phase-name">Post-earnings</span>
+        <div class="phase-bar-bg"><div class="phase-bar-fill mid" style="width:62%"></div></div>
+        <span class="phase-pct mid">62%</span>
+        <span class="phase-count">8/13</span>
+      </div>
+      <div class="phase-row">
+        <span class="phase-name">Mid-quarter</span>
+        <div class="phase-bar-bg"><div class="phase-bar-fill high" style="width:75%"></div></div>
+        <span class="phase-pct high">75%</span>
+        <span class="phase-count">15/20</span>
+      </div>
+    </div>
+
+    <!-- Quarter breakdown -->
+    <div class="detail-section-title">По кварталам</div>
+
+    <div class="phase-breakdown">
+      <div class="phase-row">
+        <span class="phase-name">Q1 2025</span>
+        <div class="phase-bar-bg"><div class="phase-bar-fill high" style="width:80%"></div></div>
+        <span class="phase-pct high">80%</span>
+        <span class="phase-count">12/15</span>
+      </div>
+      <div class="phase-row">
+        <span class="phase-name">Q2 2025</span>
+        <div class="phase-bar-bg"><div class="phase-bar-fill high" style="width:71%"></div></div>
+        <span class="phase-pct high">71%</span>
+        <span class="phase-count">10/14</span>
+      </div>
+      <div class="phase-row">
+        <span class="phase-name">Q3 2025</span>
+        <div class="phase-bar-bg"><div class="phase-bar-fill mid" style="width:64%"></div></div>
+        <span class="phase-pct mid">64%</span>
+        <span class="phase-count">9/14</span>
+      </div>
+      <div class="phase-row">
+        <span class="phase-name">Q4 2025</span>
+        <div class="phase-bar-bg"><div class="phase-bar-fill high" style="width:77%"></div></div>
+        <span class="phase-pct high">77%</span>
+        <span class="phase-count">10/13</span>
+      </div>
+    </div>
+
+    <!-- Day of week breakdown -->
+    <div class="detail-section-title">По дням недели</div>
+
+    <div class="phase-breakdown">
+      <div class="phase-row">
+        <span class="phase-name">Понедельник</span>
+        <div class="phase-bar-bg"><div class="phase-bar-fill high" style="width:82%"></div></div>
+        <span class="phase-pct high">82%</span>
+        <span class="phase-count">9/11</span>
+      </div>
+      <div class="phase-row">
+        <span class="phase-name">Вторник</span>
+        <div class="phase-bar-bg"><div class="phase-bar-fill mid" style="width:67%"></div></div>
+        <span class="phase-pct mid">67%</span>
+        <span class="phase-count">8/12</span>
+      </div>
+      <div class="phase-row">
+        <span class="phase-name">Среда</span>
+        <div class="phase-bar-bg"><div class="phase-bar-fill high" style="width:73%"></div></div>
+        <span class="phase-pct high">73%</span>
+        <span class="phase-count">8/11</span>
+      </div>
+      <div class="phase-row">
+        <span class="phase-name">Четверг</span>
+        <div class="phase-bar-bg"><div class="phase-bar-fill high" style="width:75%"></div></div>
+        <span class="phase-pct high">75%</span>
+        <span class="phase-count">9/12</span>
+      </div>
+      <div class="phase-row">
+        <span class="phase-name">Пятница</span>
+        <div class="phase-bar-bg"><div class="phase-bar-fill high" style="width:70%"></div></div>
+        <span class="phase-pct high">70%</span>
+        <span class="phase-count">7/10</span>
+      </div>
+    </div>
+
+    <!-- Example days -->
+    <div class="detail-section-title">Примеры срабатывания</div>
+
+    <div class="example-day">
+      <div class="example-day-header">
+        <span class="example-day-date">13 дек 2025, Пт</span>
+        <span class="example-day-result win">+3.6% ✓</span>
+      </div>
+      <div class="example-day-ohlc">
+        <span>O 128.50</span>
+        <span>H 134.20</span>
+        <span>L 127.90</span>
+        <span>C 133.10</span>
+      </div>
+      <div class="example-day-chart">
+        <svg viewBox="0 0 360 60" preserveAspectRatio="none" style="width:100%;height:100%;">
+          <path d="M0,30 Q20,32 40,38 Q60,46 80,48 Q100,44 120,34 Q140,22 160,14 Q180,8 200,10 Q220,14 240,16 Q260,12 280,10 Q300,8 320,10 L360,9"
+                fill="none" stroke="var(--green)" stroke-width="2"/>
+          <path d="M0,30 Q20,32 40,38 Q60,46 80,48 Q100,44 120,34 Q140,22 160,14 Q180,8 200,10 Q220,14 240,16 Q260,12 280,10 Q300,8 320,10 L360,9 L360,60 L0,60 Z"
+                fill="url(#sparkGrad1)" opacity="0.5"/>
+        </svg>
+      </div>
+      <div class="example-day-tags">
+        <span class="pattern-badge phase">Q4 2025</span>
+        <span class="pattern-badge phase">Pre-earnings</span>
+        <span class="pattern-badge phase">Пятница</span>
+      </div>
+    </div>
+
+    <div class="example-day">
+      <div class="example-day-header">
+        <span class="example-day-date">14 ноя 2025, Чт</span>
+        <span class="example-day-result win">+5.2% ✓</span>
+      </div>
+      <div class="example-day-ohlc">
+        <span>O 112.30</span>
+        <span>H 118.80</span>
+        <span>L 111.40</span>
+        <span>C 118.10</span>
+      </div>
+      <div class="example-day-chart">
+        <svg viewBox="0 0 360 60" preserveAspectRatio="none" style="width:100%;height:100%;">
+          <path d="M0,28 Q20,30 40,40 Q60,50 80,52 Q100,46 120,30 Q140,16 160,8 Q180,4 200,6 Q220,8 240,10 Q260,8 280,6 Q300,5 320,6 L360,5"
+                fill="none" stroke="var(--green)" stroke-width="2"/>
+          <path d="M0,28 Q20,30 40,40 Q60,50 80,52 Q100,46 120,30 Q140,16 160,8 Q180,4 200,6 Q220,8 240,10 Q260,8 280,6 Q300,5 320,6 L360,5 L360,60 L0,60 Z"
+                fill="url(#sparkGrad1)" opacity="0.5"/>
+        </svg>
+      </div>
+      <div class="example-day-tags">
+        <span class="pattern-badge phase">Q4 2025</span>
+        <span class="pattern-badge phase">Mid-quarter</span>
+        <span class="pattern-badge phase">Четверг</span>
+        <span class="pattern-badge" style="background:var(--green-dim);color:var(--green);">Лучший</span>
+      </div>
+    </div>
+
+    <div class="example-day">
+      <div class="example-day-header">
+        <span class="example-day-date">22 авг 2025, Пт</span>
+        <span class="example-day-result loss">-2.1% ✗</span>
+      </div>
+      <div class="example-day-ohlc">
+        <span>O 98.60</span>
+        <span>H 99.40</span>
+        <span>L 96.10</span>
+        <span>C 96.50</span>
+      </div>
+      <div class="example-day-chart">
+        <svg viewBox="0 0 360 60" preserveAspectRatio="none" style="width:100%;height:100%;">
+          <path d="M0,20 Q20,22 40,30 Q60,38 80,42 Q100,40 120,36 Q140,34 160,36 Q180,40 200,44 Q220,46 240,48 Q260,50 280,52 Q300,54 320,52 L360,54"
+                fill="none" stroke="var(--red)" stroke-width="2"/>
+          <path d="M0,20 Q20,22 40,30 Q60,38 80,42 Q100,40 120,36 Q140,34 160,36 Q180,40 200,44 Q220,46 240,48 Q260,50 280,52 Q300,54 320,52 L360,54 L360,60 L0,60 Z"
+                fill="rgba(255,23,68,0.15)"/>
+        </svg>
+      </div>
+      <div class="example-day-tags">
+        <span class="pattern-badge phase">Q3 2025</span>
+        <span class="pattern-badge phase">Post-earnings</span>
+        <span class="pattern-badge phase">Пятница</span>
+        <span class="pattern-badge" style="background:var(--red-dim);color:var(--red);">Худший</span>
+      </div>
+    </div>
+
+    <!-- Disclaimer -->
+    <div class="detail-disclaimer">
+      ⚠️ Данные основаны на исторических паттернах ALAB. Прошлые результаты не гарантируют будущих. Паттерн проверен на 56 случаях за последний год.
+    </div>
+
+  </div>
+</div>
+
+<!-- Tab bar -->
+<div class="tab-bar">
+  <div class="tab active" onclick="switchTab('now')">
+    <div class="tab-indicator"></div>
+    <span class="tab-icon">📊</span>
+    <span class="tab-label">Сейчас</span>
+  </div>
+  <div class="tab" onclick="switchTab('patterns')">
+    <div class="tab-indicator"></div>
+    <span class="tab-icon">📋</span>
+    <span class="tab-label">Паттерны</span>
+  </div>
+  <div class="tab" onclick="switchTab('history')">
+    <div class="tab-indicator"></div>
+    <span class="tab-icon">📅</span>
+    <span class="tab-label">История</span>
+  </div>
+  <div class="tab" onclick="switchTab('more')">
+    <div class="tab-indicator"></div>
+    <span class="tab-icon">⚙️</span>
+    <span class="tab-label">Ещё</span>
+  </div>
+</div>
+
+<script>
+function switchTab(tabName) {
+  // Update tab bar
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+
+  // Update views
+  document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
+  document.getElementById('tab-' + tabName).classList.add('active');
+
+  // Scroll to top
+  document.querySelector('.content').scrollTop = 0;
+
+  // Haptic feedback simulation
+  if (navigator.vibrate) navigator.vibrate(10);
+}
+
+function toggleTicker() {
+  // Placeholder for ticker dropdown
+}
+
+function showDetail() {
+  document.getElementById('patternDetail').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDetail() {
+  document.getElementById('patternDetail').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// Chip filter toggle
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', function() {
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+// Calendar day click
+document.querySelectorAll('.calendar-day').forEach(day => {
+  day.addEventListener('click', function() {
+    document.querySelectorAll('.calendar-day').forEach(d => d.style.outline = 'none');
+    this.style.outline = '2px solid var(--accent)';
+    this.style.outlineOffset = '-2px';
+  });
+});
+</script>
+</body>
+</html>
